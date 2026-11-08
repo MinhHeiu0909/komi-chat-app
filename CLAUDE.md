@@ -65,12 +65,20 @@ cd frontend && npm run build
 - Optimistic UI + thử lại khi gửi lỗi; socket tự refresh token.
 - Test tích hợp, Docker Compose, seed, CI (GitHub Actions), README.
 
-Việc cần làm ngay khi mới clone và áp patch Giai đoạn 0:
-1. `cd backend && npm install` — cập nhật `package-lock.json` với devDependencies mới (`supertest`, `mongodb-memory-server`, `socket.io-client`), rồi commit lock file. Thiếu bước này thì `npm ci` trên CI sẽ lỗi.
-2. `npm test` — bộ test được viết khi chưa chạy được; nếu fail, sửa cho đúng ý định của test chứ không nới lỏng assertion.
-3. `cd frontend && npm install && npm run build` — chưa được kiểm chứng.
+Đã kiểm chứng trên máy (2026-11-09):
+- `package-lock.json` backend đã cập nhật; `npm test` qua 12/12 (chạy trên Node 26).
+- Frontend `npm ci` + `npm run build` qua. `frontend/.npmrc` đặt `legacy-peer-deps=true` vì `@emoji-mart/react` 1.1.1 chỉ khai báo React ≤18 (chạy được với React 19); Dockerfile frontend copy file này.
+- `docker compose up --build` + seed chạy được; đã thử đăng nhập, gửi tin, đăng ký trên trình duyệt.
+- Tài khoản demo: `an.nguyen`, `binh`, `chi`, `dung`, `hoa` / `komi123` (username phải 3–30 ký tự).
+
+Chưa kiểm chứng:
+- CI trên GitHub (chưa push). `ci.yml` chỉ chạy khi push lên `main` hoặc mở PR.
+- Bộ test trên Node 22 (phiên bản CI và Docker dùng).
 
 Nợ kỹ thuật đã biết:
+- `npm audit` báo lỗ hổng trong dependencies (backend: 1 critical, 3 high), chưa xử lý.
+- Mongoose cảnh báo option `new` của `findOneAndUpdate` đã lỗi thời (nên đổi sang `returnDocument: 'after'`).
+- Bundle frontend > 500 kB, chưa code-split.
 - Chưa rotate refresh token (cần grace period để không đăng xuất người dùng nhiều tab).
 - CI chưa chạy `npm run lint` vì chưa biết lint có sạch không.
 - Các nút trong `PrivacySettings` và toggle trạng thái online trong `PreferencesForm` chưa có logic.
