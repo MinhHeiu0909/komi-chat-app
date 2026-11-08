@@ -1,93 +1,74 @@
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
-import { io } from "../socket/index.js";
+import { io, announceConversation } from "../socket/index.js";
+import { isValidObjectId } from "../middlewares/conversationMiddleware.js";
+import { findOrCreateDirectConversation } from "../utils/directConversation.js";
+import {
+  CONVERSATION_POPULATE,
+  formatConversation,
+  populateAndFormat,
+} from "../utils/conversationFormat.js";
+
+const MAX_GROUP_NAME = 100;
+const MAX_PAGE_SIZE = 100;
 
 export const createConversation = async (req, res) => {
   try {
-    const { type, name, memberIds } = req.body;
+    const { type, memberIds } = req.body;
+    const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
     const userId = req.user._id;
+    const me = userId.toString();
 
     if (
-      !type ||
-      (type === "group" && !name) ||
-      !memberIds ||
+      !["direct", "group"].includes(type) ||
       !Array.isArray(memberIds) ||
-      memberIds.length === 0
+      memberIds.length === 0 ||
+      !memberIds.every(isValidObjectId)
     ) {
-      return res
-        .status(400)
-        .json({ message: "Tên nhóm và danh sách thành viên là bắt buộc" });
+      return res.status(400).json({ message: "type hoặc memberIds không hợp lệ" });
+    }
+
+    // bỏ trùng lặp và bỏ chính mình
+    const others = [...new Set(memberIds.map(String))].filter((id) => id !== me);
+
+    if (others.length === 0) {
+      return res.status(400).json({ message: "Cần ít nhất một thành viên khác" });
     }
 
     let conversation;
+    let created = true;
 
     if (type === "direct") {
-      const participantId = memberIds[0];
-
-      conversation = await Conversation.findOne({
-        type: "direct",
-        "participants.userId": { $all: [userId, participantId] },
-      });
-
-      if (!conversation) {
-        conversation = new Conversation({
-          type: "direct",
-          participants: [{ userId }, { userId: participantId }],
-          lastMessageAt: new Date(),
-        });
-
-        await conversation.save();
+      if (others.length !== 1) {
+        return res.status(400).json({ message: "Chat 1-1 chỉ có một người nhận" });
       }
-    }
 
-    if (type === "group") {
-      conversation = new Conversation({
+      ({ conversation, created } = await findOrCreateDirectConversation(
+        userId,
+        others[0],
+      ));
+    } else {
+      if (!name || name.length > MAX_GROUP_NAME) {
+        return res
+          .status(400)
+          .json({ message: `Tên nhóm là bắt buộc, tối đa ${MAX_GROUP_NAME} ký tự` });
+      }
+
+      conversation = await Conversation.create({
         type: "group",
-        participants: [{ userId }, ...memberIds.map((id) => ({ userId: id }))],
-        group: {
-          name,
-          createdBy: userId,
-        },
+        participants: [{ userId }, ...others.map((id) => ({ userId: id }))],
+        group: { name, createdBy: userId },
         lastMessageAt: new Date(),
       });
-
-      await conversation.save();
     }
 
-    if (!conversation) {
-      return res.status(400).json({ message: "Conversation type không hợp lệ" });
+    const formatted = await populateAndFormat(conversation);
+
+    if (created) {
+      announceConversation([me, ...others], formatted);
     }
 
-    await conversation.populate([
-      { path: "participants.userId", select: "displayName avatarUrl" },
-      {
-        path: "seenBy",
-        select: "displayName avatarUrl",
-      },
-      { path: "lastMessage.senderId", select: "displayName avatarUrl" },
-    ]);
-
-    const participants = (conversation.participants || []).map((p) => ({
-      _id: p.userId?._id,
-      displayName: p.userId?.displayName,
-      avatarUrl: p.userId?.avatarUrl ?? null,
-      joinedAt: p.joinedAt,
-    }));
-
-    const formatted = { ...conversation.toObject(), participants };
-
-    if (type === "group") {
-      memberIds.forEach((userId) => {
-        io.to(userId).emit("new-group", formatted);
-      });
-    }
-
-    if (type === "direct") {
-      io.to(userId).emit("new-group", formatted);
-      io.to(memberIds[0]).emit("new-group", formatted);
-    }
-
-    return res.status(201).json({ conversation });
+    return res.status(created ? 201 : 200).json({ conversation: formatted });
   } catch (error) {
     console.error("Lỗi khi tạo conversation", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
@@ -96,64 +77,45 @@ export const createConversation = async (req, res) => {
 
 export const getConversations = async (req, res) => {
   try {
-    const userId = req.user._id;
     const conversations = await Conversation.find({
-      "participants.userId": userId,
+      "participants.userId": req.user._id,
     })
       .sort({ lastMessageAt: -1, updatedAt: -1 })
-      .populate({
-        path: "participants.userId",
-        select: "displayName avatarUrl",
-      })
-      .populate({
-        path: "lastMessage.senderId",
-        select: "displayName avatarUrl",
-      })
-      .populate({
-        path: "seenBy",
-        select: "displayName avatarUrl",
-      });
+      .populate(CONVERSATION_POPULATE);
 
-    const formatted = conversations.map((convo) => {
-      const participants = (convo.participants || []).map((p) => ({
-        _id: p.userId?._id,
-        displayName: p.userId?.displayName,
-        avatarUrl: p.userId?.avatarUrl ?? null,
-        joinedAt: p.joinedAt,
-      }));
-
-      return {
-        ...convo.toObject(),
-        unreadCounts: convo.unreadCounts || {},
-        participants,
-      };
-    });
-
-    return res.status(200).json({ conversations: formatted });
+    return res
+      .status(200)
+      .json({ conversations: conversations.map(formatConversation) });
   } catch (error) {
     console.error("Lỗi xảy ra khi lấy conversations", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };
 
+// req.conversation đã được requireConversationMember kiểm tra
 export const getMessages = async (req, res) => {
   try {
-    const { conversationId } = req.params;
-    const { limit = 50, cursor } = req.query;
+    const conversationId = req.conversation._id;
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), MAX_PAGE_SIZE);
+    const { cursor } = req.query;
 
     const query = { conversationId };
 
     if (cursor) {
-      query.createdAt = { $lt: new Date(cursor) };
+      const before = new Date(cursor);
+      if (Number.isNaN(before.getTime())) {
+        return res.status(400).json({ message: "cursor không hợp lệ" });
+      }
+      query.createdAt = { $lt: before };
     }
 
     let messages = await Message.find(query)
       .sort({ createdAt: -1 })
-      .limit(Number(limit) + 1);
+      .limit(limit + 1);
 
     let nextCursor = null;
 
-    if (messages.length > Number(limit)) {
+    if (messages.length > limit) {
       const nextMessage = messages[messages.length - 1];
       nextCursor = nextMessage.createdAt.toISOString();
       messages.pop();
@@ -161,42 +123,19 @@ export const getMessages = async (req, res) => {
 
     messages = messages.reverse();
 
-    return res.status(200).json({
-      messages,
-      nextCursor,
-    });
+    return res.status(200).json({ messages, nextCursor });
   } catch (error) {
     console.error("Lỗi xảy ra khi lấy messages", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };
 
-export const getUserConversationsForSocketIO = async (userId) => {
-  try {
-    const conversations = await Conversation.find(
-      { "participants.userId": userId },
-      { _id: 1 },
-    );
-
-    return conversations.map((c) => c._id.toString());
-  } catch (error) {
-    console.error("Lỗi khi fetch conversations: ", error);
-    return [];
-  }
-};
-
+// req.conversation đã được requireConversationMember kiểm tra
 export const markAsSeen = async (req, res) => {
   try {
-    const { conversationId } = req.params;
+    const conversationId = req.conversation._id.toString();
     const userId = req.user._id.toString();
-
-    const conversation = await Conversation.findById(conversationId).lean();
-
-    if (!conversation) {
-      return res.status(404).json({ message: "Conversation không tồn tại" });
-    }
-
-    const last = conversation.lastMessage;
+    const last = req.conversation.lastMessage;
 
     if (!last) {
       return res.status(200).json({ message: "Không có tin nhắn để mark as seen" });
@@ -212,27 +151,25 @@ export const markAsSeen = async (req, res) => {
         $addToSet: { seenBy: userId },
         $set: { [`unreadCounts.${userId}`]: 0 },
       },
-      {
-        new: true,
-      },
+      { new: true },
     );
 
     io.to(conversationId).emit("read-message", {
       conversation: updated,
       lastMessage: {
-        _id: updated?.lastMessage._id,
-        content: updated?.lastMessage.content,
-        createdAt: updated?.lastMessage.createdAt,
+        _id: updated.lastMessage._id,
+        content: updated.lastMessage.content,
+        createdAt: updated.lastMessage.createdAt,
         sender: {
-          _id: updated?.lastMessage.senderId,
+          _id: updated.lastMessage.senderId,
         },
       },
     });
 
     return res.status(200).json({
       message: "Marked as seen",
-      seenBy: updated?.sennBy || [],
-      myUnreadCount: updated?.unreadCounts[userId] || 0,
+      seenBy: updated.seenBy || [],
+      myUnreadCount: updated.unreadCounts?.get(userId) || 0,
     });
   } catch (error) {
     console.error("Lỗi khi mark as seen", error);

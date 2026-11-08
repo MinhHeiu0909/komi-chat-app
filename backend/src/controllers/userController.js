@@ -22,7 +22,10 @@ export const searchUserByUsername = async (req, res) => {
       return res.status(400).json({ message: "Cần cung cấp username trong query." });
     }
 
-    const user = await User.findOne({ username }).select(
+    // username luôn được lưu dạng chữ thường
+    const user = await User.findOne({
+      username: String(username).trim().toLowerCase(),
+    }).select(
       "_id displayName username avatarUrl"
     );
 

@@ -1,8 +1,9 @@
 import { Server } from "socket.io";
 import http from "http";
 import express from "express";
+import Conversation from "../models/Conversation.js";
 import { socketAuthMiddleware } from "../middlewares/socketMiddleware.js";
-import { getUserConversationsForSocketIO } from "../controllers/conversationController.js";
+import { userIsMemberOf } from "../middlewares/conversationMiddleware.js";
 
 const app = express();
 
@@ -17,35 +18,90 @@ const io = new Server(server, {
 
 io.use(socketAuthMiddleware);
 
-const onlineUsers = new Map(); // {userId: socketId}
+// userId (string) -> Set<socketId>
+// Một user có thể mở nhiều tab; user chỉ offline khi tab cuối cùng đóng.
+const onlineUsers = new Map();
+
+const getOnlineUserIds = () => Array.from(onlineUsers.keys());
+
+const addOnlineSocket = (userId, socketId) => {
+  const sockets = onlineUsers.get(userId) ?? new Set();
+  const wasOffline = sockets.size === 0;
+  sockets.add(socketId);
+  onlineUsers.set(userId, sockets);
+  return wasOffline;
+};
+
+const removeOnlineSocket = (userId, socketId) => {
+  const sockets = onlineUsers.get(userId);
+  if (!sockets) return false;
+
+  sockets.delete(socketId);
+  if (sockets.size > 0) return false;
+
+  onlineUsers.delete(userId);
+  return true;
+};
 
 io.on("connection", async (socket) => {
-  const user = socket.user;
+  const userId = socket.user._id.toString();
 
-  console.log(`${user.displayName} online với socket ${socket.id}`);
+  // room riêng của user, dùng để gửi sự kiện cá nhân (ví dụ: conversation mới)
+  socket.join(userId);
 
-  onlineUsers.set(user._id, socket.id);
+  if (addOnlineSocket(userId, socket.id)) {
+    io.emit("online-users", getOnlineUserIds());
+  } else {
+    socket.emit("online-users", getOnlineUserIds());
+  }
 
-  io.emit("online-users", Array.from(onlineUsers.keys()));
+  socket.on("join-conversation", async (conversationId, ack) => {
+    const reply = typeof ack === "function" ? ack : () => {};
 
-  console.log(`socket connected: ${socket.id}`);
+    try {
+      // Chỉ thành viên mới được vào room; trước đây client có thể
+      // join bất kỳ room nào và nhận tin nhắn realtime của người khác.
+      const allowed = await userIsMemberOf(conversationId, userId);
+      if (!allowed) return reply({ ok: false });
 
-  const conversationIds = await getUserConversationsForSocketIO(user._id);
-  conversationIds.forEach((id) => {
-    socket.join(id);
+      socket.join(conversationId);
+      reply({ ok: true });
+    } catch (error) {
+      console.error("Lỗi khi join-conversation:", error);
+      reply({ ok: false });
+    }
   });
-
-  socket.on("join-conversation", (conversationId) => {
-    socket.join(conversationId);
-  });
-
-  socket.join(user._id.toString());
 
   socket.on("disconnect", () => {
-    onlineUsers.delete(user._id);
-    io.emit("online-users", Array.from(onlineUsers.keys()));
-    console.log(`socket disconnected: ${socket.id}`); 
+    if (removeOnlineSocket(userId, socket.id)) {
+      io.emit("online-users", getOnlineUserIds());
+    }
   });
+
+  try {
+    const conversations = await Conversation.find(
+      { "participants.userId": socket.user._id },
+      { _id: 1 },
+    ).lean();
+
+    conversations.forEach((c) => socket.join(c._id.toString()));
+  } catch (error) {
+    console.error("Lỗi khi join các conversation của user:", error);
+  }
 });
 
-export { io, app, server };
+/**
+ * Đưa mọi socket đang mở của các user vào room của conversation mới
+ * và báo cho họ biết conversation đó vừa được tạo.
+ */
+const announceConversation = (userIds, conversation) => {
+  const roomId = conversation._id.toString();
+
+  userIds.forEach((id) => {
+    const userRoom = id.toString();
+    io.in(userRoom).socketsJoin(roomId);
+    io.to(userRoom).emit("new-group", conversation);
+  });
+};
+
+export { io, app, server, announceConversation, getOnlineUserIds };

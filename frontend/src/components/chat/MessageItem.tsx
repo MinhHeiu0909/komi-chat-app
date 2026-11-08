@@ -3,6 +3,7 @@ import type { Conversation, Message, Participant } from "@/types/chat";
 import UserAvatar from "./UserAvatar";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
+import { useChatStore } from "@/stores/useChatStore";
 
 interface MessageItemProps {
   message: Message;
@@ -28,6 +29,10 @@ const MessageItem = ({
       300000; // 5 phút
 
   const isGroupBreak = isShowTime || message.senderId !== prev?.senderId;
+
+  const retryMessage = useChatStore((s) => s.retryMessage);
+  const isSending = message.status === "sending";
+  const isFailed = message.status === "failed";
 
   const participant = selectedConvo.participants.find(
     (p: Participant) => p._id.toString() === message.senderId.toString()
@@ -70,15 +75,31 @@ const MessageItem = ({
         >
           <Card
             className={cn(
-              "p-3",
-              message.isOwn ? "chat-bubble-sent border-0" : "chat-bubble-received"
+              "p-3 transition-opacity",
+              message.isOwn ? "chat-bubble-sent border-0" : "chat-bubble-received",
+              isSending && "opacity-70",
+              isFailed && "ring-1 ring-destructive"
             )}
           >
             <p className="text-sm leading-relaxed wrap-break-word">{message.content}</p>
           </Card>
 
+          {/* đang gửi / gửi lỗi */}
+          {isSending && (
+            <span className="text-xs text-muted-foreground">Đang gửi…</span>
+          )}
+          {isFailed && message.clientId && (
+            <button
+              type="button"
+              onClick={() => retryMessage(message.conversationId, message.clientId!)}
+              className="text-xs text-destructive hover:underline"
+            >
+              Gửi không thành công · Thử lại
+            </button>
+          )}
+
           {/* seen/ delivered */}
-          {message.isOwn && message._id === selectedConvo.lastMessage?._id && (
+          {message.isOwn && !message.status && message._id === selectedConvo.lastMessage?._id && (
             <Badge
               variant="outline"
               className={cn(
@@ -88,7 +109,7 @@ const MessageItem = ({
                   : "bg-muted text-muted-foreground"
               )}
             >
-              {lastMessageStatus}
+              {lastMessageStatus === "seen" ? "Đã xem" : "Đã gửi"}
             </Badge>
           )}
         </div>
