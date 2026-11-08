@@ -71,9 +71,13 @@ cd frontend && npm run build
 - `docker compose up --build` + seed chạy được; đã thử đăng nhập, gửi tin, đăng ký trên trình duyệt.
 - Tài khoản demo: `an.nguyen`, `binh`, `chi`, `dung`, `hoa` / `komi123` (username phải 3–30 ký tự).
 
-Chưa kiểm chứng:
-- CI trên GitHub (chưa push). `ci.yml` chỉ chạy khi push lên `main` hoặc mở PR.
-- Bộ test trên Node 22 (phiên bản CI và Docker dùng).
+- CI trên GitHub xanh (job backend chạy test trên Node 22, job frontend build); PR #1 đã merge vào `main`.
+- `ci.yml` chỉ chạy khi push lên `main` hoặc mở PR — muốn CI chạy cho nhánh giai đoạn thì mở PR.
+- Push từ máy: lần đầu cần chạy với `GCM_INTERACTIVE=always` để Git Credential Manager mở cửa sổ đăng nhập GitHub (shell của Claude tắt lời nhắc tương tác).
+
+**Giai đoạn 1 — UX chat: đang làm** (nhánh `phase-1-chat-ux`, tách từ `main` sau khi merge Giai đoạn 0)
+- Thứ tự dự kiến: textarea tự giãn + Shift+Enter → typing indicator → reply → reaction → avatar "đã xem" trong nhóm → markdown/code block → gửi ảnh → hoàn thiện/ẩn nút chết.
+- Cần hỏi chủ repo trước khi thêm thư viện render markdown; gửi ảnh cần khoá Cloudinary trong `backend/.env`.
 
 Nợ kỹ thuật đã biết:
 - `npm audit` báo lỗ hổng trong dependencies (backend: 1 critical, 3 high), chưa xử lý.
