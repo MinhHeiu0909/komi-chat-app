@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { toast } from "sonner";
+import { isAxiosError } from "axios";
 import { authService } from "@/services/authService";
 import type { AuthState } from "@/types/store";
 import { persist } from "zustand/middleware";
@@ -34,9 +35,13 @@ export const useAuthStore = create<AuthState>()(
           toast.success(
             "Đăng ký thành công! Bạn sẽ được chuyển sang trang đăng nhập."
           );
+          return true;
         } catch (error) {
           console.error(error);
-          toast.error("Đăng ký không thành công");
+          // hiện lý do cụ thể từ backend (trùng username/email, username sai định dạng...)
+          const message = isAxiosError(error) ? error.response?.data?.message : undefined;
+          toast.error(message ? `Đăng ký không thành công: ${message}` : "Đăng ký không thành công");
+          return false;
         } finally {
           set({ loading: false });
         }
