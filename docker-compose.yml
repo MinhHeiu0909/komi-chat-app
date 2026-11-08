@@ -1,0 +1,45 @@
+# Chạy toàn bộ Komi trên máy:  docker compose up --build
+# Tạo dữ liệu demo:            docker compose exec backend npm run seed
+# Mở http://localhost:5173 và đăng nhập an.nguyen / komi123
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "5001:5001"
+    environment:
+      NODE_ENV: development
+      PORT: 5001
+      MONGODB_CONNECTIONSTRING: mongodb://mongo:27017/komi
+      CLIENT_URL: http://localhost:5173
+      # chỉ dùng khi chạy local; đặt biến này trong shell để ghi đè
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-chi-dung-cho-local-hay-doi-di}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:5001/api
+        VITE_SOCKET_URL: http://localhost:5001
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  mongo-data:

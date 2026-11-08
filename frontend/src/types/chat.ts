@@ -53,4 +53,8 @@ export interface Message {
   updatedAt?: string | null;
   createdAt: string;
   isOwn?: boolean;
+  // id tạm do client sinh ra khi gửi, server trả lại để ghép với tin "đang gửi"
+  clientId?: string;
+  // chỉ có ở tin nhắn chưa được server xác nhận
+  status?: "sending" | "failed";
 }

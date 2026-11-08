@@ -1,5 +1,5 @@
-import Conversation from "../models/Conversation.js";
 import Friend from "../models/Friend.js";
+import { isValidObjectId } from "./conversationMiddleware.js";
 
 const pair = (a, b) => (a < b ? [a, b] : [b, a]);
 
@@ -9,10 +9,15 @@ export const checkFriendship = async (req, res, next) => {
     const recipientId = req.body?.recipientId ?? null;
     const memberIds = req.body?.memberIds ?? [];
 
-    if (!recipientId && memberIds.length === 0) {
+    if (!recipientId && (!Array.isArray(memberIds) || memberIds.length === 0)) {
       return res
         .status(400)
         .json({ message: "Cần cung cấp recipientId hoặc memberIds" });
+    }
+
+    const ids = recipientId ? [recipientId] : memberIds;
+    if (!ids.every(isValidObjectId)) {
+      return res.status(400).json({ message: "Id người dùng không hợp lệ" });
     }
 
     if (recipientId) {
@@ -27,7 +32,9 @@ export const checkFriendship = async (req, res, next) => {
       return next();
     }
 
-    const friendChecks = memberIds.map(async (memberId) => {
+    const others = [...new Set(memberIds.map(String))].filter((id) => id !== me);
+
+    const friendChecks = others.map(async (memberId) => {
       const [userA, userB] = pair(me, memberId);
       const friend = await Friend.findOne({ userA, userB });
       return friend ? null : memberId;
@@ -45,34 +52,6 @@ export const checkFriendship = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Lỗi xảy ra khi checkFriendship:", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
-  }
-};
-
-export const checkGroupMembership = async (req, res, next) => {
-  try {
-    const { conversationId } = req.body;
-    const userId = req.user._id;
-
-    const conversation = await Conversation.findById(conversationId);
-
-    if (!conversation) {
-      return res.status(404).json({ message: "Không tìm thấy cuộc trò chuyện" });
-    }
-
-    const isMember = conversation.participants.some(
-      (p) => p.userId.toString() === userId.toString()
-    );
-
-    if (!isMember) {
-      return res.status(403).json({ message: "Bạn không ở trong group này." });
-    }
-
-    req.conversation = conversation;
-
-    next();
-  } catch (error) {
-    console.error("Lỗi checkGroupMembership:", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };

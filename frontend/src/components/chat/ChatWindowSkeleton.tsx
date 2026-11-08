@@ -1,5 +1,3 @@
-import React from 'react'
-
 const ChatWindowSkeleton = () => {
   return (
     <div>ChatWindowSkeleton</div>

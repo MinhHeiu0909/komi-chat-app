@@ -1,4 +1,4 @@
-import api from "@/lib/axios";
+import api, { refreshAccessToken } from "@/lib/axios";
 
 export const authService = {
   signUp: async (
@@ -27,7 +27,7 @@ export const authService = {
   },
 
   signOut: async () => {
-    return api.post("/auth/signout", { withCredentials: true });
+    return api.post("/auth/signout");
   },
 
   fetchMe: async () => {
@@ -35,8 +35,6 @@ export const authService = {
     return res.data.user;
   },
 
-  refresh: async () => {
-    const res = await api.post("/auth/refresh", { withCredentials: true });
-    return res.data.accessToken;
-  },
+  // dùng chung promise với interceptor để không gọi refresh song song
+  refresh: async () => refreshAccessToken(),
 };

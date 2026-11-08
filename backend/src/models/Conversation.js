@@ -86,6 +86,12 @@ const conversationSchema = new mongoose.Schema(
       of: Number,
       default: {},
     },
+    // Khoá duy nhất cho chat 1-1: "<idNhỏ>:<idLớn>".
+    // Unique + sparse để hai request đồng thời không tạo ra 2 conversation trùng.
+    directKey: {
+      type: String,
+      default: undefined,
+    },
   },
   {
     timestamps: true,
@@ -93,9 +99,16 @@ const conversationSchema = new mongoose.Schema(
 );
 
 conversationSchema.index({
-  "participant.userId": 1,
+  "participants.userId": 1,
   lastMessageAt: -1,
 });
+
+conversationSchema.index({ directKey: 1 }, { unique: true, sparse: true });
+
+export const makeDirectKey = (a, b) => {
+  const [x, y] = [a.toString(), b.toString()].sort();
+  return `${x}:${y}`;
+};
 
 const Conversation = mongoose.model("Conversation", conversationSchema);
 export default Conversation;

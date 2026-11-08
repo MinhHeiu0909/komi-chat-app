@@ -8,9 +8,22 @@ import Session from "../models/Session.js";
 const ACCESS_TOKEN_TTL = "30m"; // thường là dưới 15m
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 ngày tính theo mili giây
 
+// clearCookie phải dùng cùng option với lúc set, nếu không trình duyệt sẽ không xoá
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "none", // backend, frontend deploy riêng
+};
+
+const USERNAME_PATTERN = /^[a-z0-9_.]{3,30}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 6;
+
 export const signUp = async (req, res) => {
   try {
-    const { username, password, email, firstName, lastName } = req.body;
+    const { password, firstName, lastName } = req.body;
+    const username = String(req.body.username ?? "").trim().toLowerCase();
+    const email = String(req.body.email ?? "").trim().toLowerCase();
 
     if (!username || !password || !email || !firstName || !lastName) {
       return res.status(400).json({
@@ -18,11 +31,29 @@ export const signUp = async (req, res) => {
           "Không thể thiếu username, password, email, firstName, và lastName",
       });
     }
-    // kiểm tra username tồn tại chưa
-    const duplicate = await User.findOne({ username });
+
+    if (!USERNAME_PATTERN.test(username)) {
+      return res.status(400).json({
+        message: "username gồm 3–30 ký tự: chữ thường, số, dấu chấm hoặc gạch dưới",
+      });
+    }
+
+    if (!EMAIL_PATTERN.test(email)) {
+      return res.status(400).json({ message: "Email không hợp lệ" });
+    }
+
+    if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
+      return res
+        .status(400)
+        .json({ message: `Mật khẩu cần ít nhất ${MIN_PASSWORD_LENGTH} ký tự` });
+    }
+
+    // kiểm tra username / email tồn tại chưa
+    const duplicate = await User.findOne({ $or: [{ username }, { email }] });
 
     if (duplicate) {
-      return res.status(409).json({ message: "username đã tồn tại" });
+      const field = duplicate.username === username ? "username" : "email";
+      return res.status(409).json({ message: `${field} đã tồn tại` });
     }
 
     // mã hoá password
@@ -39,6 +70,10 @@ export const signUp = async (req, res) => {
     // return
     return res.sendStatus(204);
   } catch (error) {
+    // hai request đăng ký cùng lúc vẫn có thể đụng unique index
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: "username hoặc email đã tồn tại" });
+    }
     console.error("Lỗi khi gọi signUp", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
@@ -47,7 +82,8 @@ export const signUp = async (req, res) => {
 export const signIn = async (req, res) => {
   try {
     // lấy inputs
-    const { username, password } = req.body;
+    const { password } = req.body;
+    const username = String(req.body.username ?? "").trim().toLowerCase();
 
     if (!username || !password) {
       return res.status(400).json({ message: "Thiếu username hoặc password." });
@@ -89,9 +125,7 @@ export const signIn = async (req, res) => {
     });
 
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none", // backend, frontend deploy riêng
+      ...REFRESH_COOKIE_OPTIONS,
       maxAge: REFRESH_TOKEN_TTL,
     });
 
@@ -115,7 +149,7 @@ export const signOut = async (req, res) => {
       await Session.deleteOne({ refreshToken: token });
 
       // xoá cookie
-      res.clearCookie("refreshToken");
+      res.clearCookie("refreshToken", REFRESH_COOKIE_OPTIONS);
     }
 
     return res.sendStatus(204);

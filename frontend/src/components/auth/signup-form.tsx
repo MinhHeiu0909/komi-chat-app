@@ -12,7 +12,14 @@ import { useNavigate } from "react-router";
 const signUpSchema = z.object({
   firstname: z.string().min(1, "Tên bắt buộc phải có"),
   lastname: z.string().min(1, "Họ bắt buộc phải có"),
-  username: z.string().min(3, "Tên đăng nhập phải có ít nhất 3 ký tự"),
+  username: z
+    .string()
+    .min(3, "Tên đăng nhập phải có ít nhất 3 ký tự")
+    .max(30, "Tên đăng nhập tối đa 30 ký tự")
+    .regex(
+      /^[a-zA-Z0-9_.]+$/,
+      "Chỉ dùng chữ không dấu, số, dấu chấm hoặc gạch dưới"
+    ),
   email: z.email("Email không hợp lệ"),
   password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
 });
@@ -32,14 +39,12 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
   });
 
   const onSubmit = async (data: SignUpFormValues) => {
-
-    console.log(data)
     const { firstname, lastname, username, email, password } = data;
 
-    // gọi backend để signup
-    await signUp(username, password, email, firstname, lastname);
+    // gọi backend để signup; thất bại thì ở lại để người dùng sửa form
+    const ok = await signUp(username, password, email, firstname, lastname);
 
-    navigate("/signin");
+    if (ok) navigate("/signin");
   };
 
   return (

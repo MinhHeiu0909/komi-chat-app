@@ -20,6 +20,11 @@ const messageSchema = new mongoose.Schema(
     imgUrl: {
       type: String,
     },
+    // id tạm do client sinh ra, dùng để thay tin nhắn "đang gửi" bằng tin thật
+    clientId: {
+      type: String,
+      maxlength: 64,
+    },
   },
   {
     timestamps: true,

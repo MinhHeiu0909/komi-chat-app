@@ -16,7 +16,7 @@ export interface AuthState {
     email: string,
     firstName: string,
     lastName: string
-  ) => Promise<void>;
+  ) => Promise<boolean>; // true nếu đăng ký thành công
   signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   fetchMe: () => Promise<void>;
@@ -63,7 +63,8 @@ export interface ChatState {
   // update convo
   updateConversation: (conversation: unknown) => void;
   markAsSeen: () => Promise<void>;
-  addConvo: (convo: Conversation) => void;
+  addConvo: (convo: Conversation, options?: { activate?: boolean }) => void;
+  retryMessage: (conversationId: string, clientId: string) => Promise<void>;
   createConversation: (
     type: "group" | "direct",
     name: string,
