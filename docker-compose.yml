@@ -1,6 +1,6 @@
 # Chạy toàn bộ Komi trên máy:  docker compose up --build
 # Tạo dữ liệu demo:            docker compose exec backend npm run seed
-# Mở http://localhost:5173 và đăng nhập an / komi123
+# Mở http://localhost:5173 và đăng nhập an.nguyen / komi123
 
 services:
   mongo:

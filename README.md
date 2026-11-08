@@ -11,7 +11,7 @@ docker compose up --build
 docker compose exec backend npm run seed   # tạo dữ liệu demo
 ```
 
-Mở http://localhost:5173 và đăng nhập bằng `an`, `binh`, `chi`, `dung` hoặc `hoa` với mật khẩu `komi123`.
+Mở http://localhost:5173 và đăng nhập bằng `an.nguyen`, `binh`, `chi`, `dung` hoặc `hoa` với mật khẩu `komi123`.
 
 ## Chạy không dùng Docker
 

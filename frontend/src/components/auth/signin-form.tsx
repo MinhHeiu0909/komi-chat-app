@@ -10,7 +10,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useNavigate } from "react-router";
 
 const signInSchema = z.object({
-  username: z.string().min(3, "Tên đăng nhập phải có ít nhất 3 ký tự"),
+  username: z.string().trim().min(1, "Vui lòng nhập tên đăng nhập"),
   password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
 });
 
@@ -30,7 +30,9 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
   const onSubmit = async (data: SignInFormValues) => {
     const { username, password } = data;
     await signIn(username, password);
-    navigate("/");
+    // signIn tự bắt lỗi; chỉ chuyển trang khi đã có token, nếu không
+    // ProtectedRoute sẽ gọi refresh và báo nhầm "phiên đã hết hạn"
+    if (useAuthStore.getState().accessToken) navigate("/");
   };
 
   return (
