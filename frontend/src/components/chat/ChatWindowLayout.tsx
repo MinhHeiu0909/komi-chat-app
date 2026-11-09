@@ -55,7 +55,9 @@ const ChatWindowLayout = () => {
 
       {/* Footer */}
       <TypingIndicator convo={selectedConvo} />
-      <MessageInput selectedConvo={selectedConvo} />
+      {/* key: đổi cuộc trò chuyện thì ô nhập mới tinh, chữ / ảnh đang soạn
+          không bị mang sang cuộc khác */}
+      <MessageInput key={selectedConvo._id} selectedConvo={selectedConvo} />
     </SidebarInset>
   );
 };

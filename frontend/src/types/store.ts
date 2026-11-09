@@ -55,16 +55,17 @@ export interface ChatState {
   toggleReaction: (conversationId: string, messageId: string, emoji: string) => Promise<void>;
   // cập nhật cảm xúc từ server (socket "message-reaction")
   setMessageReactions: (conversationId: string, messageId: string, reactions: Reaction[]) => void;
+  // image: ảnh người dùng chọn; store tự tải lên rồi gửi kèm imgUrl
   sendDirectMessage: (
     recipientId: string,
     content: string,
-    imgUrl?: string,
+    image?: File | null,
     replyTo?: Message | null
   ) => Promise<void>;
   sendGroupMessage: (
     conversationId: string,
     content: string,
-    imgUrl?: string,
+    image?: File | null,
     replyTo?: Message | null
   ) => Promise<void>;
   // add message

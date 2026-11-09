@@ -6,6 +6,8 @@ import { chatService } from "@/services/chatService";
 import { useAuthStore } from "./useAuthStore";
 import { applyReaction } from "@/lib/reactions";
 import { toast } from "sonner";
+import { IMAGE_PREVIEW_TEXT } from "@/lib/messageImage";
+import axios from "axios";
 
 type MessageEntry = ChatState["messages"][string];
 
@@ -16,6 +18,25 @@ const newClientId = () =>
 
 const isPendingFor = (m: Message, clientId?: string) =>
   Boolean(m.status && clientId && m.clientId === clientId);
+
+// Ảnh của tin đang gửi, theo clientId. Giữ File để gửi lại được khi lỗi,
+// và nhớ imgUrl đã tải lên để lần gửi lại không phải tải lần nữa.
+const pendingImages = new Map<
+  string,
+  { file: File; previewUrl: string; uploadedUrl?: string }
+>();
+
+const releasePendingImage = (clientId: string) => {
+  const pending = pendingImages.get(clientId);
+  if (!pending) return;
+  pendingImages.delete(clientId);
+  // đợi ảnh thật tải xong trên màn hình rồi mới thu hồi ảnh xem trước
+  window.setTimeout(() => URL.revokeObjectURL(pending.previewUrl), 30_000);
+};
+
+// lấy câu báo lỗi của server (vd. "Ảnh tối đa 5MB") nếu có
+const serverMessage = (error: unknown) =>
+  axios.isAxiosError(error) ? (error.response?.data?.message as string | undefined) : undefined;
 
 export const useChatStore = create<ChatState>()(
   persist(
@@ -96,6 +117,13 @@ export const useChatStore = create<ChatState>()(
         try {
           let message: Message;
 
+          // có ảnh: tải lên trước (chỉ một lần, kể cả khi gửi lại)
+          const image = pendingImages.get(clientId);
+          if (image && !image.uploadedUrl) {
+            image.uploadedUrl = await chatService.uploadImage(image.file);
+          }
+          const imgUrl = image?.uploadedUrl;
+
           if (convo.type === "direct") {
             const other = convo.participants.find((p) => p._id !== user._id);
             if (!other) throw new Error("Không tìm thấy người nhận");
@@ -103,7 +131,7 @@ export const useChatStore = create<ChatState>()(
             message = await chatService.sendDirectMessage(
               other._id,
               content,
-              undefined,
+              imgUrl,
               conversationId,
               clientId,
               replyToId
@@ -112,13 +140,14 @@ export const useChatStore = create<ChatState>()(
             message = await chatService.sendGroupMessage(
               conversationId,
               content,
-              undefined,
+              imgUrl,
               clientId,
               replyToId
             );
           }
 
           settleMessage(message);
+          releasePendingImage(clientId);
 
           set((state) => ({
             conversations: state.conversations.map((c) =>
@@ -128,18 +157,24 @@ export const useChatStore = create<ChatState>()(
         } catch (error) {
           console.error("Lỗi xảy ra khi gửi tin nhắn", error);
           setPendingStatus(conversationId, clientId, "failed");
+          const reason = serverMessage(error);
+          if (reason) toast.error(reason);
         }
       };
 
       const sendOptimistic = async (
         conversationId: string,
         content: string,
-        replyTo?: Message | null
+        replyTo?: Message | null,
+        image?: File | null
       ) => {
         const { user } = useAuthStore.getState();
         if (!user) return;
 
         const clientId = newClientId();
+        // ảnh hiện ngay từ máy người gửi trong lúc đang tải lên
+        const previewUrl = image ? URL.createObjectURL(image) : undefined;
+        if (image && previewUrl) pendingImages.set(clientId, { file: image, previewUrl });
         // chỉ trả lời được tin đã lưu (có _id thật), không phải tin "đang gửi"
         const replyTarget = replyTo && !replyTo.status ? replyTo : null;
 
@@ -151,6 +186,7 @@ export const useChatStore = create<ChatState>()(
             conversationId,
             senderId: user._id,
             content,
+            imgUrl: previewUrl,
             createdAt: new Date().toISOString(),
             isOwn: true,
             status: "sending",
@@ -159,7 +195,9 @@ export const useChatStore = create<ChatState>()(
               replyTo: {
                 messageId: replyTarget._id,
                 senderId: replyTarget.senderId,
-                content: (replyTarget.content ?? "").slice(0, 200),
+                content: (
+                  replyTarget.content || (replyTarget.imgUrl ? IMAGE_PREVIEW_TEXT : "")
+                ).slice(0, 200),
               },
             }),
           },
@@ -280,16 +318,17 @@ export const useChatStore = create<ChatState>()(
             set({ messageLoading: false });
           }
         },
-        sendDirectMessage: async (recipientId, content, imgUrl, replyTo) => {
+        sendDirectMessage: async (recipientId, content, image, replyTo) => {
           const { activeConversationId } = get();
 
           if (activeConversationId) {
-            await sendOptimistic(activeConversationId, content, replyTo);
+            await sendOptimistic(activeConversationId, content, replyTo, image);
             return;
           }
 
           // chưa có conversation: server sẽ tạo và báo về qua socket
           try {
+            const imgUrl = image ? await chatService.uploadImage(image) : undefined;
             const message = await chatService.sendDirectMessage(
               recipientId,
               content,
@@ -298,10 +337,11 @@ export const useChatStore = create<ChatState>()(
             settleMessage(message);
           } catch (error) {
             console.error("Lỗi xảy ra khi gửi direct message", error);
+            toast.error(serverMessage(error) ?? "Gửi tin nhắn không thành công");
           }
         },
-        sendGroupMessage: async (conversationId, content, _imgUrl, replyTo) => {
-          await sendOptimistic(conversationId, content, replyTo);
+        sendGroupMessage: async (conversationId, content, image, replyTo) => {
+          await sendOptimistic(conversationId, content, replyTo, image);
         },
         retryMessage: async (conversationId, clientId) => {
           const pending = get().messages[conversationId]?.items.find((m) =>

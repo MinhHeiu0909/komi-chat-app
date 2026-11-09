@@ -30,6 +30,36 @@ const jumpToMessage = (messageId: string) => {
   window.setTimeout(() => bubble.classList.remove("reply-target-flash"), 1500);
 };
 
+const MessageImage = ({
+  src,
+  href,
+  spaced,
+}: {
+  src: string;
+  href?: string;
+  spaced: boolean;
+}) => {
+  const img = (
+    <img
+      src={src}
+      alt="Ảnh trong tin nhắn"
+      loading="lazy"
+      className={cn(
+        "block max-h-72 w-auto max-w-full rounded-md object-contain bg-muted/40",
+        spaced && "mb-2"
+      )}
+    />
+  );
+
+  return href ? (
+    <a href={href} target="_blank" rel="noopener noreferrer" title="Mở ảnh gốc">
+      {img}
+    </a>
+  ) : (
+    img
+  );
+};
+
 interface MessageItemProps {
   message: Message;
   index: number;
@@ -178,6 +208,8 @@ const MessageItem = ({
             className={cn(
               // max-w-full: khối code / bảng dài thì cuộn ngang bên trong, không đẩy bong bóng tràn ra
               "p-3 transition-opacity max-w-full min-w-0",
+              // tin chỉ có ảnh: viền mỏng quanh ảnh thay vì đệm dày
+              message.imgUrl && !message.content && !message.replyTo && "p-1",
               message.isOwn ? "chat-bubble-sent border-0" : "chat-bubble-received",
               isSending && "opacity-70",
               isFailed && "ring-1 ring-destructive"
@@ -202,6 +234,14 @@ const MessageItem = ({
                   {message.replyTo.content || "Tin nhắn"}
                 </span>
               </button>
+            )}
+            {message.imgUrl && (
+              <MessageImage
+                src={message.imgUrl}
+                // ảnh đang gửi là ảnh tạm trên máy (blob:), chưa có link để mở
+                href={message.status ? undefined : message.imgUrl}
+                spaced={Boolean(message.content || message.replyTo)}
+              />
             )}
             {message.content && <MessageContent content={message.content} />}
           </Card>

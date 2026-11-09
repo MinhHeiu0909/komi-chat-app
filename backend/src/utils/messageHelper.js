@@ -1,4 +1,5 @@
 import Conversation from "../models/Conversation.js";
+import { IMAGE_PREVIEW_TEXT } from "./messageImage.js";
 
 /**
  * Cập nhật conversation sau khi có tin nhắn mới bằng MỘT lệnh update nguyên tử.
@@ -27,7 +28,8 @@ export const updateConversationAfterCreateMessage = async (
       lastMessageAt: message.createdAt,
       lastMessage: {
         _id: message._id.toString(),
-        content: message.content,
+        // tin chỉ có ảnh: hiện "📷 Hình ảnh" ở danh sách chat
+        content: message.content || (message.imgUrl ? IMAGE_PREVIEW_TEXT : ""),
         senderId,
         createdAt: message.createdAt,
       },
@@ -37,7 +39,7 @@ export const updateConversationAfterCreateMessage = async (
 
   if (Object.keys(increments).length > 0) update.$inc = increments;
 
-  return Conversation.findByIdAndUpdate(conversation._id, update, { new: true });
+  return Conversation.findByIdAndUpdate(conversation._id, update, { returnDocument: "after" });
 };
 
 export const emitNewMessage = (io, conversation, message) => {

@@ -12,17 +12,29 @@ import {
   userIsMemberOf,
 } from "../middlewares/conversationMiddleware.js";
 import { io, announceConversation } from "../socket/index.js";
+import {
+  IMAGE_PREVIEW_TEXT,
+  imageStorage,
+  isOwnMessageImageUrl,
+  isSupportedImage,
+} from "../utils/messageImage.js";
 
 export const MAX_MESSAGE_LENGTH = 4000;
 
-const readContent = (body) => {
+// Tin phải có chữ hoặc ảnh (hoặc cả hai). Ảnh phải do chính người gửi tải lên.
+const readContent = (body, senderId) => {
   const content = typeof body?.content === "string" ? body.content.trim() : "";
+  const rawImg = body?.imgUrl;
+  const hasImg = rawImg !== undefined && rawImg !== null && rawImg !== "";
 
-  if (!content) return { error: "Thiếu nội dung" };
+  if (hasImg && !isOwnMessageImageUrl(rawImg, senderId)) {
+    return { error: "Ảnh không hợp lệ" };
+  }
+  if (!content && !hasImg) return { error: "Thiếu nội dung" };
   if (content.length > MAX_MESSAGE_LENGTH) {
     return { error: `Tin nhắn tối đa ${MAX_MESSAGE_LENGTH} ký tự` };
   }
-  return { content };
+  return { content, imgUrl: hasImg ? rawImg : undefined };
 };
 
 const readClientId = (body) =>
@@ -52,7 +64,7 @@ const readReplyTo = async (body, conversationId) => {
   ).lean();
   if (!original) return invalid;
 
-  const text = original.content || (original.imgUrl ? "[Hình ảnh]" : "");
+  const text = original.content || (original.imgUrl ? IMAGE_PREVIEW_TEXT : "");
   return {
     replyTo: {
       messageId: original._id,
@@ -62,11 +74,12 @@ const readReplyTo = async (body, conversationId) => {
   };
 };
 
-const createAndEmit = async (conversation, senderId, content, clientId, replyTo) => {
+const createAndEmit = async (conversation, senderId, { content, imgUrl }, clientId, replyTo) => {
   const message = await Message.create({
     conversationId: conversation._id,
     senderId,
     content,
+    imgUrl,
     clientId,
     replyTo,
   });
@@ -86,7 +99,7 @@ export const sendDirectMessage = async (req, res) => {
     const { recipientId, conversationId } = req.body;
     const senderId = req.user._id;
 
-    const { content, error } = readContent(req.body);
+    const { error, ...body } = readContent(req.body, senderId);
     if (error) return res.status(400).json({ message: error });
 
     if (!isValidObjectId(recipientId) || recipientId === senderId.toString()) {
@@ -130,7 +143,7 @@ export const sendDirectMessage = async (req, res) => {
     const message = await createAndEmit(
       conversation,
       senderId,
-      content,
+      body,
       readClientId(req.body),
       reply.replyTo,
     );
@@ -152,7 +165,7 @@ export const sendGroupMessage = async (req, res) => {
       return res.status(400).json({ message: "Conversation không phải nhóm" });
     }
 
-    const { content, error } = readContent(req.body);
+    const { error, ...body } = readContent(req.body, senderId);
     if (error) return res.status(400).json({ message: error });
 
     const reply = await readReplyTo(req.body, conversation._id);
@@ -161,7 +174,7 @@ export const sendGroupMessage = async (req, res) => {
     const message = await createAndEmit(
       conversation,
       senderId,
-      content,
+      body,
       readClientId(req.body),
       reply.replyTo,
     );
@@ -170,6 +183,31 @@ export const sendGroupMessage = async (req, res) => {
   } catch (error) {
     console.error("Lỗi xảy ra khi gửi tin nhắn nhóm", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+/**
+ * Tải ảnh lên trước khi gửi tin; trả về imgUrl để gửi kèm tin nhắn.
+ * Tách thành bước riêng để client hiện ảnh "đang gửi" ngay và gửi lại
+ * được mà không phải tải ảnh lên lần nữa.
+ */
+export const uploadMessageImage = async (req, res) => {
+  try {
+    if (!imageStorage.isReady()) {
+      return res.status(503).json({ message: "Server chưa cấu hình nơi lưu ảnh (Cloudinary)" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "Chưa chọn ảnh" });
+    }
+    if (!isSupportedImage(req.file.buffer)) {
+      return res.status(400).json({ message: "Chỉ nhận ảnh JPG, PNG, GIF hoặc WEBP" });
+    }
+
+    const result = await imageStorage.upload(req.file.buffer, req.user._id.toString());
+    return res.status(201).json({ imgUrl: result.secure_url });
+  } catch (error) {
+    console.error("Lỗi xảy ra khi tải ảnh tin nhắn", error);
+    return res.status(500).json({ message: "Tải ảnh không thành công" });
   }
 };
 

@@ -8,6 +8,11 @@ import { Textarea } from "../ui/textarea";
 import { useChatStore } from "@/stores/useChatStore";
 import { toast } from "sonner";
 import EmojiPicker from "./EmojiPicker";
+import {
+  ACCEPTED_IMAGE_TYPES,
+  IMAGE_PREVIEW_TEXT,
+  validateImageFile,
+} from "@/lib/messageImage";
 
 // ô nhập cao tối đa ~6 dòng, quá thì cuộn bên trong
 const MAX_INPUT_HEIGHT = 160;
@@ -22,6 +27,26 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   const { sendDirectMessage, sendGroupMessage, replyingTo, setReplyingTo } = useChatStore();
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ảnh đã chọn, chờ gửi (kèm URL xem trước tạo từ máy)
+  const [attachment, setAttachment] = useState<{ file: File; url: string } | null>(null);
+
+  // thu hồi URL xem trước khi bỏ ảnh / gửi xong / rời trang
+  useEffect(() => {
+    if (!attachment) return;
+    return () => URL.revokeObjectURL(attachment.url);
+  }, [attachment]);
+
+  const attachImage = (file: File) => {
+    const error = validateImageFile(file);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    setAttachment({ file, url: URL.createObjectURL(file) });
+    textareaRef.current?.focus();
+  };
 
   // vừa bấm "Trả lời" thì đưa con trỏ vào ô nhập luôn
   useEffect(() => {
@@ -70,9 +95,11 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   const sendMessage = async () => {
     // backend cũng trim; trim ở đây để bản "đang gửi" giống bản thật
     const currValue = value.trim();
-    if (!currValue) return;
+    const image = attachment?.file ?? null;
+    if (!currValue && !image) return;
     const replyTo = replyingTo;
     setValue("");
+    setAttachment(null);
     setReplyingTo(null);
     stopTyping();
 
@@ -80,9 +107,9 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
       if (selectedConvo.type === "direct") {
         const participants = selectedConvo.participants;
         const otherUser = participants.filter((p) => p._id !== user._id)[0];
-        await sendDirectMessage(otherUser._id, currValue, undefined, replyTo);
+        await sendDirectMessage(otherUser._id, currValue, image, replyTo);
       } else {
-        await sendGroupMessage(selectedConvo._id, currValue, undefined, replyTo);
+        await sendGroupMessage(selectedConvo._id, currValue, image, replyTo);
       }
     } catch (error) {
       console.error(error);
@@ -106,6 +133,14 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
     }
   };
 
+  // dán ảnh (Ctrl+V) từ ảnh chụp màn hình / trình duyệt
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const file = Array.from(e.clipboardData.files).find((f) => f.type.startsWith("image/"));
+    if (!file) return;
+    e.preventDefault();
+    attachImage(file);
+  };
+
   const replyName = replyingTo
     ? replyingTo.senderId === user._id
       ? "chính bạn"
@@ -120,7 +155,9 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
           <Reply className="size-3.5 mt-0.5 shrink-0 text-primary" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <span className="block font-semibold text-primary">Đang trả lời {replyName}</span>
-            <span className="block truncate text-muted-foreground">{replyingTo.content}</span>
+            <span className="block truncate text-muted-foreground">
+              {replyingTo.content || (replyingTo.imgUrl ? IMAGE_PREVIEW_TEXT : "")}
+            </span>
           </div>
           <button
             type="button"
@@ -134,11 +171,48 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
         </div>
       )}
 
+      {/* ảnh đã chọn, chờ gửi */}
+      {attachment && (
+        <div className="mx-3 mt-2 flex items-center gap-2">
+          <div className="relative">
+            <img
+              src={attachment.url}
+              alt="Ảnh sẽ gửi"
+              className="size-16 rounded-md border object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => setAttachment(null)}
+              aria-label="Bỏ ảnh"
+              title="Bỏ ảnh"
+              className="absolute -right-1.5 -top-1.5 rounded-full border bg-background p-0.5 text-muted-foreground shadow-sm hover:text-foreground"
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <span className="truncate text-xs text-muted-foreground">{attachment.file.name}</span>
+        </div>
+      )}
+
     {/* items-end: khi ô nhập giãn cao, các nút nằm ở dòng cuối */}
     <div className="flex items-end gap-2 p-3 min-h-14">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED_IMAGE_TYPES.join(",")}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) attachImage(file);
+          e.target.value = ""; // chọn lại đúng file đó vẫn nhận
+        }}
+      />
       <Button
         variant="ghost"
         size="icon"
+        onClick={() => fileInputRef.current?.click()}
+        aria-label="Gửi ảnh"
+        title="Gửi ảnh (hoặc dán bằng Ctrl+V)"
         className="hover:bg-primary/10 transition-smooth"
       >
         <ImagePlus className="size-4" />
@@ -150,6 +224,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
           rows={1}
           maxLength={4000} // khớp MAX_MESSAGE_LENGTH ở backend
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
@@ -178,7 +253,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
       <Button
         onClick={sendMessage}
         className="bg-gradient-chat hover:shadow-glow transition-smooth hover:scale-105"
-        disabled={!value.trim()}
+        disabled={!value.trim() && !attachment}
       >
         <Send className="size-4 text-white" />
       </Button>

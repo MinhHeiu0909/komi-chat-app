@@ -475,6 +475,95 @@ describe("Đã xem (seen) trong nhóm", () => {
   });
 });
 
+describe("Gửi ảnh", () => {
+  // ảnh PNG 1x1 thật
+  const PNG = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+    "base64",
+  );
+  let imageStorage;
+  let original;
+  const urlFor = (user, name = "anh1") =>
+    `https://res.cloudinary.com/komi-test/image/upload/v1700000000/komi_chat/messages/${user._id}/${name}.png`;
+
+  before(async () => {
+    ({ imageStorage } = await import("../src/utils/messageImage.js"));
+    original = { ...imageStorage };
+    process.env.CLOUDINARY_CLOUD_NAME = "komi-test";
+    // không gọi Cloudinary thật trong test
+    imageStorage.isReady = () => true;
+    imageStorage.upload = async (_buffer, userId) => ({ secure_url: urlFor({ _id: userId }) });
+  });
+
+  after(() => {
+    Object.assign(imageStorage, original);
+    delete process.env.CLOUDINARY_CLOUD_NAME;
+  });
+
+  const upload = (user, buffer, filename = "anh.png", contentType = "image/png") =>
+    request(app)
+      .post("/api/messages/images")
+      .set(auth(user))
+      .attach("file", buffer, { filename, contentType });
+
+  test("tải ảnh lên rồi gửi tin chỉ có ảnh", async () => {
+    const up = await upload(A, PNG);
+    assert.equal(up.status, 201);
+    assert.equal(up.body.imgUrl, urlFor(A));
+
+    const res = await request(app)
+      .post("/api/messages/group")
+      .set(auth(A))
+      .send({ conversationId: groupAB._id.toString(), imgUrl: up.body.imgUrl });
+    assert.equal(res.status, 201);
+    assert.equal(res.body.message.imgUrl, urlFor(A));
+
+    // danh sách chat hiện chữ thay cho tin rỗng
+    const convo = await models.Conversation.findById(groupAB._id).lean();
+    assert.equal(convo.lastMessage.content, "📷 Hình ảnh");
+  });
+
+  test("file không phải ảnh bị từ chối dù khai là image/png", async () => {
+    const res = await upload(A, Buffer.from("<html><script>alert(1)</script></html>"), "x.png");
+    assert.equal(res.status, 400);
+  });
+
+  test("ảnh quá 5MB trả 413", async () => {
+    const big = Buffer.concat([PNG, Buffer.alloc(5 * 1024 * 1024)]);
+    const res = await upload(A, big);
+    assert.equal(res.status, 413);
+  });
+
+  test("không nhận imgUrl tuỳ ý hoặc ảnh của người khác", async () => {
+    const send = (imgUrl) =>
+      request(app)
+        .post("/api/messages/group")
+        .set(auth(A))
+        .send({ conversationId: groupAB._id.toString(), content: "xem nè", imgUrl });
+
+    for (const imgUrl of [
+      "https://tracker.example.com/pixel.png", // link theo dõi
+      urlFor(B), // ảnh trong thư mục của Bình
+      urlFor(A).replace("komi-test", "cloud-khac"), // Cloudinary của người khác
+      urlFor(A, "../../x"), // cố thoát khỏi thư mục
+      "javascript:alert(1)",
+    ]) {
+      const res = await send(imgUrl);
+      assert.equal(res.status, 400, imgUrl);
+    }
+  });
+
+  test("server chưa cấu hình Cloudinary thì báo 503", async () => {
+    imageStorage.isReady = () => false;
+    try {
+      const res = await upload(A, PNG);
+      assert.equal(res.status, 503);
+    } finally {
+      imageStorage.isReady = () => true;
+    }
+  });
+});
+
 describe("Auth", () => {
   test("đăng ký trùng email trả 409 thay vì 500", async () => {
     const res = await request(app).post("/api/auth/signup").send({

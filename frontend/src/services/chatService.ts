@@ -59,6 +59,16 @@ export const chatService = {
     return res.data.message;
   },
 
+  // tải ảnh lên trước, server trả về imgUrl để gửi kèm tin
+  async uploadImage(file: File): Promise<string> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await api.post("/messages/images", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data.imgUrl;
+  },
+
   async toggleReaction(messageId: string, emoji: string): Promise<Reaction[]> {
     const res = await api.post(`/messages/${messageId}/reactions`, { emoji });
     return res.data.reactions;
