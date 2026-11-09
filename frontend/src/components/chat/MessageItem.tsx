@@ -81,7 +81,7 @@ const MessageItem = ({
               isFailed && "ring-1 ring-destructive"
             )}
           >
-            <p className="text-sm leading-relaxed wrap-break-word">{message.content}</p>
+            <p className="text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">{message.content}</p>
           </Card>
 
           {/* đang gửi / gửi lỗi */}

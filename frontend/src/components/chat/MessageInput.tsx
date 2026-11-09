@@ -1,24 +1,38 @@
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { Conversation } from "@/types/chat";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { ImagePlus, Send } from "lucide-react";
-import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
 import { useChatStore } from "@/stores/useChatStore";
 import { toast } from "sonner";
 import EmojiPicker from "./EmojiPicker";
 
+// ô nhập cao tối đa ~6 dòng, quá thì cuộn bên trong
+const MAX_INPUT_HEIGHT = 160;
 
 const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   const { user } = useAuthStore();
   const { sendDirectMessage, sendGroupMessage } = useChatStore();
   const [value, setValue] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // tự giãn theo nội dung: đặt về auto rồi lấy scrollHeight
+  // (không dùng CSS field-sizing vì Firefox chưa hỗ trợ)
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)}px`;
+    el.style.overflowY = el.scrollHeight > MAX_INPUT_HEIGHT ? "auto" : "hidden";
+  }, [value]);
 
   if (!user) return;
 
   const sendMessage = async () => {
-    if (!value.trim()) return;
-    const currValue = value;
+    // backend cũng trim; trim ở đây để bản "đang gửi" giống bản thật
+    const currValue = value.trim();
+    if (!currValue) return;
     setValue("");
 
     try {
@@ -36,6 +50,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Enter gửi, Shift+Enter xuống dòng (mặc định của textarea).
     // isComposing: đang gõ dở bằng bộ gõ (Telex/VNI, IME), Enter lúc này
     // là để chốt chữ chứ không phải để gửi
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -45,7 +60,8 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   };
 
   return (
-    <div className="flex items-center gap-2 p-3 min-h-14 bg-background">
+    // items-end: khi ô nhập giãn cao, các nút nằm ở dòng cuối
+    <div className="flex items-end gap-2 p-3 min-h-14 bg-background">
       <Button
         variant="ghost"
         size="icon"
@@ -55,14 +71,18 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
       </Button>
 
       <div className="flex-1 relative">
-        <Input
+        <Textarea
+          ref={textareaRef}
+          rows={1}
+          maxLength={4000} // khớp MAX_MESSAGE_LENGTH ở backend
           onKeyDown={handleKeyDown}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Soạn tin nhắn..."
-          className="pr-20 h-9 bg-white border-border/50 focus:border-primary/50 transition-smooth resize-none"
-        ></Input>
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+          placeholder="Soạn tin nhắn... (Shift+Enter để xuống dòng)"
+          aria-label="Soạn tin nhắn"
+          className="block min-h-9 py-2 pr-12 text-sm md:text-sm leading-5 bg-white border-border/50 focus:border-primary/50 transition-smooth"
+        />
+        <div className="absolute right-2 bottom-0.5 flex items-center gap-1">
           <Button
             render={<div/>}
             variant="ghost"
