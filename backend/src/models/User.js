@@ -39,6 +39,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       sparse: true, // cho phép null, nhưng không được trùng
     },
+    // false: người khác luôn thấy user này offline (user cũ chưa có trường này = hiện)
+    showOnlineStatus: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,

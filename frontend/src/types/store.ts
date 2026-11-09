@@ -105,6 +105,13 @@ export interface FriendState {
   getFriends: () => Promise<void>;
 }
 
+export type ProfilePatch = Partial<
+  Pick<User, "displayName" | "bio" | "phone" | "showOnlineStatus">
+>;
+
 export interface UserState {
   updateAvatarUrl: (formData: FormData) => Promise<void>;
+  // trả về true nếu lưu thành công (lỗi đã được báo bằng toast)
+  updateProfile: (patch: ProfilePatch) => Promise<boolean>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
 }

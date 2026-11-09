@@ -17,7 +17,7 @@ const REFRESH_COOKIE_OPTIONS = {
 
 const USERNAME_PATTERN = /^[a-z0-9_.]{3,30}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 6;
+export const MIN_PASSWORD_LENGTH = 6;
 
 export const signUp = async (req, res) => {
   try {

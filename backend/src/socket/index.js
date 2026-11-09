@@ -22,7 +22,20 @@ io.use(socketAuthMiddleware);
 // Một user có thể mở nhiều tab; user chỉ offline khi tab cuối cùng đóng.
 const onlineUsers = new Map();
 
-const getOnlineUserIds = () => Array.from(onlineUsers.keys());
+// user đã tắt "Hiển thị trạng thái online": vẫn kết nối bình thường
+// nhưng không có trong danh sách online gửi cho người khác
+const hiddenUsers = new Set();
+
+const getOnlineUserIds = () =>
+  Array.from(onlineUsers.keys()).filter((id) => !hiddenUsers.has(id));
+
+/** Gọi khi user bật/tắt hiển thị online; báo lại cho mọi người nếu user đang online. */
+const setOnlineVisibility = (userId, visible) => {
+  const id = userId.toString();
+  const changed = visible ? hiddenUsers.delete(id) : !hiddenUsers.has(id);
+  if (!visible) hiddenUsers.add(id);
+  if (changed && onlineUsers.has(id)) io.emit("online-users", getOnlineUserIds());
+};
 
 const addOnlineSocket = (userId, socketId) => {
   const sockets = onlineUsers.get(userId) ?? new Set();
@@ -48,6 +61,9 @@ io.on("connection", async (socket) => {
 
   // room riêng của user, dùng để gửi sự kiện cá nhân (ví dụ: conversation mới)
   socket.join(userId);
+
+  if (socket.user.showOnlineStatus === false) hiddenUsers.add(userId);
+  else hiddenUsers.delete(userId);
 
   if (addOnlineSocket(userId, socket.id)) {
     io.emit("online-users", getOnlineUserIds());
@@ -120,4 +136,4 @@ const announceConversation = (userIds, conversation) => {
   });
 };
 
-export { io, app, server, announceConversation, getOnlineUserIds };
+export { io, app, server, announceConversation, getOnlineUserIds, setOnlineVisibility };
