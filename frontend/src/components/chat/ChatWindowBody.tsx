@@ -1,6 +1,6 @@
 import { useChatStore } from "@/stores/useChatStore";
 import ChatWelcomeScreen from "./ChatWelcomeScreen";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import MessageItem from "./MessageItem";
 import InfiniteScroll from "react-infinite-scroll-component";
 
@@ -11,9 +11,6 @@ const ChatWindowBody = () => {
     messages: allMessages,
     fetchMessages,
   } = useChatStore();
-  const [lastMessageStatus, setLastMessageStatus] = useState<
-    "delivered" | "seen"
-  >("delivered");
 
   const messages = allMessages[activeConversationId!]?.items ?? [];
   const reversedMessages = [...messages].reverse();
@@ -26,18 +23,6 @@ const ChatWindowBody = () => {
   //   // ref
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // seen status
-  useEffect(() => {
-    const lastMessage = selectedConvo?.lastMessage;
-    if (!lastMessage) {
-      return;
-    }
-
-    const seenBy = selectedConvo?.seenBy ?? [];
-
-    setLastMessageStatus(seenBy.length > 0 ? "seen" : "delivered");
-  }, [selectedConvo]);
 
   //   // kéo xuống dưới khi load convo
   useLayoutEffect(() => {
@@ -131,7 +116,6 @@ const ChatWindowBody = () => {
               index={index}
               messages={reversedMessages}
               selectedConvo={selectedConvo}
-              lastMessageStatus={lastMessageStatus}
             />
           ))}
         </InfiniteScroll>

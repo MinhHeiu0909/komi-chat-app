@@ -44,12 +44,27 @@ export interface ConversationResponse {
   conversations: Conversation[];
 }
 
+// bản trích của tin được trả lời (server lưu sẵn, tối đa 200 ký tự)
+export interface ReplyTo {
+  messageId: string;
+  senderId: string;
+  content: string;
+}
+
+// mỗi người tối đa một cảm xúc cho mỗi tin
+export interface Reaction {
+  userId: string;
+  emoji: string;
+}
+
 export interface Message {
   _id: string;
   conversationId: string;
   senderId: string;
   content: string | null;
   imgUrl?: string | null;
+  replyTo?: ReplyTo;
+  reactions?: Reaction[];
   updatedAt?: string | null;
   createdAt: string;
   isOwn?: boolean;

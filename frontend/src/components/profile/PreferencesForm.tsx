@@ -9,13 +9,23 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useThemeStore } from "@/stores/useThemeStore";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useUserStore } from "@/stores/useUserStore";
 import { useState } from "react";
 
 const PreferencesForm = () => {
   const { isDark, toggleTheme } = useThemeStore();
 
-  //   các bạn cần handle logic setOnlineStatus
-  const [onlineStatus, setOnlineStatus] = useState(false);
+  // lưu vào tài khoản; tắt thì server không báo mình online cho người khác
+  const showOnline = useAuthStore((s) => s.user?.showOnlineStatus !== false);
+  const updateProfile = useUserStore((s) => s.updateProfile);
+  const [saving, setSaving] = useState(false);
+
+  const toggleOnline = async (checked: boolean) => {
+    setSaving(true);
+    await updateProfile({ showOnlineStatus: checked });
+    setSaving(false);
+  };
 
   return (
     <Card className="glass-strong border-border/30">
@@ -63,13 +73,16 @@ const PreferencesForm = () => {
               Hiển thị trạng thái online
             </Label>
             <p className="text-sm text-muted-foreground">
-              Cho phép người khác thấy khi bạn đang online
+              {showOnline
+                ? "Người khác thấy khi bạn đang online"
+                : "Đang ẩn: người khác luôn thấy bạn offline"}
             </p>
           </div>
           <Switch
             id="online-status"
-            checked={onlineStatus}
-            onCheckedChange={setOnlineStatus}
+            checked={showOnline}
+            disabled={saving}
+            onCheckedChange={toggleOnline}
             className="data-[state=checked]:bg-primary-glow"
           />
         </div>

@@ -1,5 +1,5 @@
 import type { Socket } from "socket.io-client";
-import type { Conversation, Message } from "./chat";
+import type { Conversation, Message, Reaction } from "./chat";
 import type { Friend, FriendRequest, User } from "./user";
 
 export interface AuthState {
@@ -48,15 +48,25 @@ export interface ChatState {
   setActiveConversation: (id: string | null) => void;
   fetchConversations: () => Promise<void>;
   fetchMessages: (conversationId?: string) => Promise<void>;
+  // tin đang được trả lời (thanh "Đang trả lời" phía trên ô nhập)
+  replyingTo: Message | null;
+  setReplyingTo: (message: Message | null) => void;
+  // thả / đổi / gỡ cảm xúc (cập nhật ngay, lỗi thì hoàn tác)
+  toggleReaction: (conversationId: string, messageId: string, emoji: string) => Promise<void>;
+  // cập nhật cảm xúc từ server (socket "message-reaction")
+  setMessageReactions: (conversationId: string, messageId: string, reactions: Reaction[]) => void;
+  // image: ảnh người dùng chọn; store tự tải lên rồi gửi kèm imgUrl
   sendDirectMessage: (
     recipientId: string,
     content: string,
-    imgUrl?: string
+    image?: File | null,
+    replyTo?: Message | null
   ) => Promise<void>;
   sendGroupMessage: (
     conversationId: string,
     content: string,
-    imgUrl?: string
+    image?: File | null,
+    replyTo?: Message | null
   ) => Promise<void>;
   // add message
   addMessage: (message: Message) => Promise<void>;
@@ -75,8 +85,11 @@ export interface ChatState {
 export interface SocketState {
   socket: Socket | null;
   onlineUsers: string[];
+  // conversationId -> userId của những người khác đang gõ
+  typingUsers: Record<string, string[]>;
   connectSocket: () => void;
   disconnectSocket: () => void;
+  emitTyping: (conversationId: string, isTyping: boolean) => void;
 }
 
 export interface FriendState {
@@ -92,6 +105,13 @@ export interface FriendState {
   getFriends: () => Promise<void>;
 }
 
+export type ProfilePatch = Partial<
+  Pick<User, "displayName" | "bio" | "phone" | "showOnlineStatus">
+>;
+
 export interface UserState {
   updateAvatarUrl: (formData: FormData) => Promise<void>;
+  // trả về true nếu lưu thành công (lỗi đã được báo bằng toast)
+  updateProfile: (patch: ProfilePatch) => Promise<boolean>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
 }

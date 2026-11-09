@@ -71,17 +71,27 @@ cd frontend && npm run build
 - `docker compose up --build` + seed chạy được; đã thử đăng nhập, gửi tin, đăng ký trên trình duyệt.
 - Tài khoản demo: `an.nguyen`, `binh`, `chi`, `dung`, `hoa` / `komi123` (username phải 3–30 ký tự).
 
-Chưa kiểm chứng:
-- CI trên GitHub (chưa push). `ci.yml` chỉ chạy khi push lên `main` hoặc mở PR.
-- Bộ test trên Node 22 (phiên bản CI và Docker dùng).
+- CI trên GitHub xanh (job backend chạy test trên Node 22, job frontend build); PR #1 đã merge vào `main`.
+- `ci.yml` chỉ chạy khi push lên `main` hoặc mở PR — muốn CI chạy cho nhánh giai đoạn thì mở PR.
+- Push từ máy: lần đầu cần chạy với `GCM_INTERACTIVE=always` để Git Credential Manager mở cửa sổ đăng nhập GitHub (shell của Claude tắt lời nhắc tương tác).
+
+**Giai đoạn 1 — UX chat: xong code, chưa push / chưa mở PR** (nhánh `phase-1-chat-ux`, tách từ `main` sau khi merge Giai đoạn 0)
+- Thứ tự: textarea tự giãn + Shift+Enter → typing indicator → reply → reaction → avatar "đã xem" trong nhóm → markdown/code block → gửi ảnh → hoàn thiện/ẩn nút chết.
+- **Đã xong cả 8 việc (2026-11-10)**, mỗi việc một commit, đã thử trên trình duyệt. `npm test` backend 32/32.
+- Nút chết: chủ repo chọn làm thật sửa hồ sơ (`PATCH /api/users/me`), ẩn trạng thái online (`User.showOnlineStatus`, server lọc khỏi `online-users`), đổi mật khẩu (`POST /api/users/me/password`, xoá session khác); đã bỏ "Cài đặt thông báo", "Chặn & Báo cáo", "Xoá tài khoản" và dấu "…" ở danh sách chat.
+- Markdown: chủ repo đã duyệt `react-markdown` + `remark-gfm` (+ `remark-breaks` để Enter một lần vẫn xuống dòng). HTML thô hiện thành chữ, ảnh trong markdown không tải. Danh sách chat và trích dẫn reply vẫn hiện ký hiệu markdown thô.
+- Gửi ảnh: tải lên trước (`POST /api/messages/images`, Cloudinary, thư mục `komi_chat/messages/<userId>`), rồi gửi tin kèm `imgUrl`; server chỉ nhận `imgUrl` là ảnh Cloudinary của app trong thư mục của chính người gửi (`isOwnMessageImageUrl`). Test thay `imageStorage` bằng bản giả.
+- Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore), rồi `docker compose up -d backend`. Chạy backend trực tiếp thì dùng `backend/.env`.
+- Khi thử trên trình duyệt: ảnh chụp màn hình của công cụ có thể nhỏ hơn viewport (800×600 so với 1024×768) — toạ độ bấm phải quy đổi.
 
 Nợ kỹ thuật đã biết:
 - `npm audit` báo lỗ hổng trong dependencies (backend: 1 critical, 3 high), chưa xử lý.
-- Mongoose cảnh báo option `new` của `findOneAndUpdate` đã lỗi thời (nên đổi sang `returnDocument: 'after'`).
 - Bundle frontend > 500 kB, chưa code-split.
 - Chưa rotate refresh token (cần grace period để không đăng xuất người dùng nhiều tab).
-- CI chưa chạy `npm run lint` vì chưa biết lint có sạch không.
-- Các nút trong `PrivacySettings` và toggle trạng thái online trong `PreferencesForm` chưa có logic.
+- CI chưa chạy `npm run lint`: lint frontend chưa sạch ở file cũ (vd. `EmojiPicker.tsx` dùng `any`); file mới của Giai đoạn 1 đã sạch.
+- Đổi mật khẩu chỉ xoá session (refresh token); access token của thiết bị khác vẫn dùng được tới khi hết hạn (30 phút), socket đang mở không bị ngắt.
+- `online-users` được phát cho mọi user đang kết nối, không chỉ bạn bè.
+- Chưa đổi được username/email (cần xác thực email).
 - Cursor phân trang chỉ theo `createdAt`; tin trùng mili-giây có thể bị bỏ sót.
 
 ## Lộ trình

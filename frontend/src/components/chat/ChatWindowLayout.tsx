@@ -4,6 +4,7 @@ import { SidebarInset } from "../ui/sidebar";
 import ChatWindowHeader from "./ChatWindowHeader";
 import ChatWindowBody from "./ChatWindowBody";
 import MessageInput from "./MessageInput";
+import TypingIndicator from "./TypingIndicator";
 import { useEffect } from "react";
 import ChatWindowSkeleton from "./ChatWindowSkeleton";
 
@@ -53,7 +54,10 @@ const ChatWindowLayout = () => {
       </div>
 
       {/* Footer */}
-      <MessageInput selectedConvo={selectedConvo} />
+      <TypingIndicator convo={selectedConvo} />
+      {/* key: đổi cuộc trò chuyện thì ô nhập mới tinh, chữ / ảnh đang soạn
+          không bị mang sang cuộc khác */}
+      <MessageInput key={selectedConvo._id} selectedConvo={selectedConvo} />
     </SidebarInset>
   );
 };

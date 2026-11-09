@@ -22,7 +22,20 @@ io.use(socketAuthMiddleware);
 // Một user có thể mở nhiều tab; user chỉ offline khi tab cuối cùng đóng.
 const onlineUsers = new Map();
 
-const getOnlineUserIds = () => Array.from(onlineUsers.keys());
+// user đã tắt "Hiển thị trạng thái online": vẫn kết nối bình thường
+// nhưng không có trong danh sách online gửi cho người khác
+const hiddenUsers = new Set();
+
+const getOnlineUserIds = () =>
+  Array.from(onlineUsers.keys()).filter((id) => !hiddenUsers.has(id));
+
+/** Gọi khi user bật/tắt hiển thị online; báo lại cho mọi người nếu user đang online. */
+const setOnlineVisibility = (userId, visible) => {
+  const id = userId.toString();
+  const changed = visible ? hiddenUsers.delete(id) : !hiddenUsers.has(id);
+  if (!visible) hiddenUsers.add(id);
+  if (changed && onlineUsers.has(id)) io.emit("online-users", getOnlineUserIds());
+};
 
 const addOnlineSocket = (userId, socketId) => {
   const sockets = onlineUsers.get(userId) ?? new Set();
@@ -49,6 +62,9 @@ io.on("connection", async (socket) => {
   // room riêng của user, dùng để gửi sự kiện cá nhân (ví dụ: conversation mới)
   socket.join(userId);
 
+  if (socket.user.showOnlineStatus === false) hiddenUsers.add(userId);
+  else hiddenUsers.delete(userId);
+
   if (addOnlineSocket(userId, socket.id)) {
     io.emit("online-users", getOnlineUserIds());
   } else {
@@ -71,6 +87,22 @@ io.on("connection", async (socket) => {
       reply({ ok: false });
     }
   });
+
+  // "đang nhập…": chuyển tiếp cho các thành viên khác trong room.
+  // Phải kiểm tra thành viên vì socket.to(room) vẫn phát được vào room
+  // mà socket gửi không ở trong đó. Client chỉ gửi typing:start tối đa
+  // vài giây một lần nên truy vấn DB ở đây không đáng kể.
+  const relayTyping = (isTyping) => async (conversationId) => {
+    try {
+      if (!(await userIsMemberOf(conversationId, userId))) return;
+      socket.to(conversationId).emit("typing", { conversationId, userId, isTyping });
+    } catch (error) {
+      console.error("Lỗi khi chuyển tiếp typing:", error);
+    }
+  };
+
+  socket.on("typing:start", relayTyping(true));
+  socket.on("typing:stop", relayTyping(false));
 
   socket.on("disconnect", () => {
     if (removeOnlineSocket(userId, socket.id)) {
@@ -104,4 +136,4 @@ const announceConversation = (userIds, conversation) => {
   });
 };
 
-export { io, app, server, announceConversation, getOnlineUserIds };
+export { io, app, server, announceConversation, getOnlineUserIds, setOnlineVisibility };

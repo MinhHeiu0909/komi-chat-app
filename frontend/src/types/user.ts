@@ -6,6 +6,8 @@ export interface User {
   avatarUrl?: string;
   bio?: string;
   phone?: string;
+  // false: người khác luôn thấy mình offline
+  showOnlineStatus?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

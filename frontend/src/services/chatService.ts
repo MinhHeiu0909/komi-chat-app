@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import type { ConversationResponse, Message } from "@/types/chat";
+import type { ConversationResponse, Message, Reaction } from "@/types/chat";
 
 interface FetchMessageProps {
   messages: Message[];
@@ -27,7 +27,8 @@ export const chatService = {
     content: string = "",
     imgUrl?: string,
     conversationId?: string,
-    clientId?: string
+    clientId?: string,
+    replyToId?: string
   ): Promise<Message> {
     const res = await api.post("/messages/direct", {
       recipientId,
@@ -35,6 +36,7 @@ export const chatService = {
       imgUrl,
       conversationId,
       clientId,
+      replyToId,
     });
 
     return res.data.message;
@@ -44,15 +46,32 @@ export const chatService = {
     conversationId: string,
     content: string = "",
     imgUrl?: string,
-    clientId?: string
+    clientId?: string,
+    replyToId?: string
   ): Promise<Message> {
     const res = await api.post("/messages/group", {
       conversationId,
       content,
       imgUrl,
       clientId,
+      replyToId,
     });
     return res.data.message;
+  },
+
+  // tải ảnh lên trước, server trả về imgUrl để gửi kèm tin
+  async uploadImage(file: File): Promise<string> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await api.post("/messages/images", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data.imgUrl;
+  },
+
+  async toggleReaction(messageId: string, emoji: string): Promise<Reaction[]> {
+    const res = await api.post(`/messages/${messageId}/reactions`, { emoji });
+    return res.data.reactions;
   },
 
   async markAsSeen(conversationId: string) {
