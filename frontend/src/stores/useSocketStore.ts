@@ -105,6 +105,11 @@ export const useSocketStore = create<SocketState>((set, get) => {
       // mất kết nối thì không còn biết ai đang gõ
       socket.on("disconnect", clearAllTyping);
 
+      // ai đó thả / gỡ cảm xúc (kể cả tab khác của chính mình)
+      socket.on("message-reaction", ({ conversationId, messageId, reactions }) => {
+        useChatStore.getState().setMessageReactions(conversationId, messageId, reactions);
+      });
+
       // new message
       socket.on("new-message", ({ message, conversation, unreadCounts }) => {
         // người gửi vừa gửi xong thì thôi hiện "đang nhập"

@@ -4,6 +4,8 @@ import type { ChatState } from "@/types/store";
 import type { Message } from "@/types/chat";
 import { chatService } from "@/services/chatService";
 import { useAuthStore } from "./useAuthStore";
+import { applyReaction } from "@/lib/reactions";
+import { toast } from "sonner";
 
 type MessageEntry = ChatState["messages"][string];
 
@@ -178,6 +180,32 @@ export const useChatStore = create<ChatState>()(
         // đổi cuộc trò chuyện thì bỏ tin đang trả lời của cuộc cũ
         setActiveConversation: (id) => set({ activeConversationId: id, replyingTo: null }),
         setReplyingTo: (message) => set({ replyingTo: message }),
+        setMessageReactions: (conversationId, messageId, reactions) => {
+          updateItems(conversationId, (items) =>
+            items.some((m) => m._id === messageId)
+              ? items.map((m) => (m._id === messageId ? { ...m, reactions } : m))
+              : items
+          );
+        },
+        toggleReaction: async (conversationId, messageId, emoji) => {
+          const { user } = useAuthStore.getState();
+          if (!user) return;
+
+          const current = get().messages[conversationId]?.items.find((m) => m._id === messageId);
+          const previous = current?.reactions ?? [];
+
+          // hiện ngay, không chờ server
+          get().setMessageReactions(conversationId, messageId, applyReaction(previous, user._id, emoji));
+
+          try {
+            const reactions = await chatService.toggleReaction(messageId, emoji);
+            get().setMessageReactions(conversationId, messageId, reactions);
+          } catch (error) {
+            console.error("Lỗi xảy ra khi thả cảm xúc", error);
+            get().setMessageReactions(conversationId, messageId, previous);
+            toast.error("Không thả được cảm xúc. Bạn thử lại nhé!");
+          }
+        },
         reset: () => {
           set({
             conversations: [],

@@ -1,5 +1,5 @@
 import type { Socket } from "socket.io-client";
-import type { Conversation, Message } from "./chat";
+import type { Conversation, Message, Reaction } from "./chat";
 import type { Friend, FriendRequest, User } from "./user";
 
 export interface AuthState {
@@ -51,6 +51,10 @@ export interface ChatState {
   // tin đang được trả lời (thanh "Đang trả lời" phía trên ô nhập)
   replyingTo: Message | null;
   setReplyingTo: (message: Message | null) => void;
+  // thả / đổi / gỡ cảm xúc (cập nhật ngay, lỗi thì hoàn tác)
+  toggleReaction: (conversationId: string, messageId: string, emoji: string) => Promise<void>;
+  // cập nhật cảm xúc từ server (socket "message-reaction")
+  setMessageReactions: (conversationId: string, messageId: string, reactions: Reaction[]) => void;
   sendDirectMessage: (
     recipientId: string,
     content: string,

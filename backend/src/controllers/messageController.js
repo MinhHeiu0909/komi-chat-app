@@ -9,6 +9,7 @@ import { populateAndFormat } from "../utils/conversationFormat.js";
 import {
   isParticipant,
   isValidObjectId,
+  userIsMemberOf,
 } from "../middlewares/conversationMiddleware.js";
 import { io, announceConversation } from "../socket/index.js";
 
@@ -168,6 +169,80 @@ export const sendGroupMessage = async (req, res) => {
     return res.status(201).json({ message });
   } catch (error) {
     console.error("Lỗi xảy ra khi gửi tin nhắn nhóm", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+// Bộ cảm xúc cố định (giống Messenger); chỉ nhận đúng các emoji này
+export const ALLOWED_REACTIONS = ["👍", "❤️", "😆", "😮", "😢", "😡"];
+
+/**
+ * Thả / đổi / gỡ cảm xúc cho một tin nhắn.
+ * - Chưa có hoặc đang có emoji khác: đặt emoji mới (mỗi user một emoji).
+ * - Đang có đúng emoji này: gỡ đi.
+ * Cập nhật bằng một lệnh nguyên tử (pipeline update), không load-sửa-save.
+ */
+export const toggleReaction = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body ?? {};
+    const userId = req.user._id;
+
+    if (!isValidObjectId(messageId)) {
+      return res.status(400).json({ message: "messageId không hợp lệ" });
+    }
+    if (!ALLOWED_REACTIONS.includes(emoji)) {
+      return res.status(400).json({ message: "Cảm xúc không hợp lệ" });
+    }
+
+    const message = await Message.findById(messageId, { conversationId: 1, reactions: 1 }).lean();
+
+    // Không phải thành viên thì trả 404 như tin không tồn tại, để không lộ tin nhắn
+    if (!message || !(await userIsMemberOf(message.conversationId.toString(), userId))) {
+      return res.status(404).json({ message: "Không tìm thấy tin nhắn" });
+    }
+
+    const removing = (message.reactions ?? []).some(
+      (r) => r.userId.toString() === userId.toString() && r.emoji === emoji,
+    );
+
+    const updated = await Message.findOneAndUpdate(
+      { _id: messageId },
+      [
+        {
+          $set: {
+            reactions: {
+              $concatArrays: [
+                {
+                  $filter: {
+                    input: { $ifNull: ["$reactions", []] },
+                    cond: { $ne: ["$$this.userId", userId] },
+                  },
+                },
+                removing ? [] : [{ userId, emoji }],
+              ],
+            },
+          },
+        },
+      ],
+      {
+        returnDocument: "after",
+        projection: { conversationId: 1, reactions: 1 },
+        updatePipeline: true, // Mongoose yêu cầu bật rõ khi update bằng pipeline
+      },
+    ).lean();
+
+    const payload = {
+      messageId,
+      conversationId: updated.conversationId.toString(),
+      reactions: updated.reactions ?? [],
+    };
+
+    io.to(payload.conversationId).emit("message-reaction", payload);
+
+    return res.status(200).json(payload);
+  } catch (error) {
+    console.error("Lỗi xảy ra khi thả cảm xúc", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };

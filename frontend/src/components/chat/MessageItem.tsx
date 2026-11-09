@@ -5,8 +5,14 @@ import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { useChatStore } from "@/stores/useChatStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { Reply } from "lucide-react";
+import { Reply, SmilePlus } from "lucide-react";
 import { toast } from "sonner";
+import { useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { REACTIONS, groupReactions } from "@/lib/reactions";
+
+const actionButtonClass =
+  "self-center shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity";
 
 // Cuộn tới tin gốc và nháy viền để người dùng thấy nó ở đâu
 const jumpToMessage = (messageId: string) => {
@@ -62,18 +68,63 @@ const MessageItem = ({
     (p: Participant) => p._id.toString() === message.senderId.toString()
   );
 
-  // chỉ trả lời được tin đã lưu trên server
-  const canReply = !message.status;
-  const replyButton = canReply && (
-    <button
-      type="button"
-      onClick={() => setReplyingTo(message)}
-      aria-label="Trả lời tin nhắn này"
-      title="Trả lời"
-      className="self-center shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity"
+  const toggleReaction = useChatStore((s) => s.toggleReaction);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const react = (emoji: string) =>
+    toggleReaction(message.conversationId, message._id, emoji);
+  const reactionGroups = groupReactions(message.reactions ?? []);
+  const myReaction = message.reactions?.find((r) => r.userId === currentUserId)?.emoji;
+
+  // chỉ trả lời / thả cảm xúc được với tin đã lưu trên server
+  const canAct = !message.status;
+  const actions = canAct && (
+    <div
+      className={cn(
+        "flex items-center self-center",
+        // tin của mình: nút nằm bên trái bong bóng nên đảo thứ tự cho cân
+        message.isOwn && "flex-row-reverse"
+      )}
     >
-      <Reply className="size-4" />
-    </button>
+      <button
+        type="button"
+        onClick={() => setReplyingTo(message)}
+        aria-label="Trả lời tin nhắn này"
+        title="Trả lời"
+        className={actionButtonClass}
+      >
+        <Reply className="size-4" />
+      </button>
+
+      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+        <PopoverTrigger
+          aria-label="Thả cảm xúc"
+          title="Thả cảm xúc"
+          className={actionButtonClass}
+        >
+          <SmilePlus className="size-4" />
+        </PopoverTrigger>
+        <PopoverContent side="top" className="w-auto flex-row gap-1 rounded-full p-1.5">
+          {REACTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              aria-label={`Thả ${emoji}`}
+              aria-pressed={myReaction === emoji}
+              onClick={() => {
+                react(emoji);
+                setPickerOpen(false);
+              }}
+              className={cn(
+                "size-9 rounded-full text-xl leading-none transition-transform hover:scale-125 motion-reduce:hover:scale-100",
+                myReaction === emoji && "bg-primary/15"
+              )}
+            >
+              {emoji}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 
   return (
@@ -92,8 +143,8 @@ const MessageItem = ({
           message.isOwn ? "justify-end" : "justify-start"
         )}
       >
-        {/* tin của mình: nút trả lời nằm bên trái bong bóng */}
-        {message.isOwn && replyButton}
+        {/* tin của mình: các nút nằm bên trái bong bóng */}
+        {message.isOwn && actions}
 
         {/* avatar */}
         {!message.isOwn && (
@@ -147,6 +198,33 @@ const MessageItem = ({
             <p className="text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">{message.content}</p>
           </Card>
 
+          {/* cảm xúc: bấm vào một ô để thả / gỡ đúng cảm xúc đó */}
+          {reactionGroups.length > 0 && (
+            <div className="-mt-2 flex flex-wrap gap-1 px-1">
+              {reactionGroups.map(({ emoji, userIds }) => {
+                const mine = userIds.includes(currentUserId ?? "");
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => react(emoji)}
+                    aria-pressed={mine}
+                    title={userIds.map(nameOf).join(", ")}
+                    className={cn(
+                      "flex items-center gap-1 rounded-full border bg-background px-1.5 py-0.5 text-xs shadow-sm tabular-nums transition-colors",
+                      mine
+                        ? "border-primary/50 bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <span className="text-sm leading-none">{emoji}</span>
+                    {userIds.length > 1 && <span>{userIds.length}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* đang gửi / gửi lỗi */}
           {isSending && (
             <span className="text-xs text-muted-foreground">Đang gửi…</span>
@@ -177,8 +255,8 @@ const MessageItem = ({
           )}
         </div>
 
-        {/* tin của người khác: nút trả lời nằm bên phải bong bóng */}
-        {!message.isOwn && replyButton}
+        {/* tin của người khác: các nút nằm bên phải bong bóng */}
+        {!message.isOwn && actions}
       </div>
     </>
   );

@@ -349,6 +349,88 @@ describe("Trả lời (reply) tin nhắn", () => {
   });
 });
 
+describe("Cảm xúc (reaction)", () => {
+  let messageId;
+
+  const react = (user, emoji, id = messageId) =>
+    request(app).post(`/api/messages/${id}/reactions`).set(auth(user)).send({ emoji });
+
+  before(async () => {
+    const res = await request(app)
+      .post("/api/messages/group")
+      .set(auth(A))
+      .send({ conversationId: groupAB._id.toString(), content: "Thả tim tin này đi" });
+    messageId = res.body.message._id;
+  });
+
+  test("thả, đổi rồi gỡ cảm xúc; mỗi người một cảm xúc", async () => {
+    let res = await react(B, "❤️");
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.reactions, [{ userId: B._id.toString(), emoji: "❤️" }]);
+
+    res = await react(A, "👍");
+    assert.equal(res.body.reactions.length, 2);
+
+    // Bình đổi sang 😆: thay chứ không thêm
+    res = await react(B, "😆");
+    assert.deepEqual(
+      res.body.reactions.find((r) => r.userId === B._id.toString()),
+      { userId: B._id.toString(), emoji: "😆" },
+    );
+    assert.equal(res.body.reactions.length, 2);
+
+    // bấm lại đúng 😆: gỡ
+    res = await react(B, "😆");
+    assert.deepEqual(res.body.reactions, [{ userId: A._id.toString(), emoji: "👍" }]);
+  });
+
+  test("người ngoài nhận 404 và không thay đổi được gì", async () => {
+    const before = await models.Message.findById(messageId).lean();
+
+    const res = await react(C, "😡");
+    assert.equal(res.status, 404);
+
+    const after = await models.Message.findById(messageId).lean();
+    assert.deepEqual(after.reactions, before.reactions);
+  });
+
+  test("emoji ngoài danh sách hoặc messageId sai trả 400", async () => {
+    assert.equal((await react(A, "<script>")).status, 400);
+    assert.equal((await react(A, "👍", "khong-phai-id")).status, 400);
+  });
+
+  test("thành viên khác nhận cập nhật realtime", async () => {
+    const socket = connectClient(baseUrl, {
+      auth: { token: tokenFor(B) },
+      transports: ["websocket"],
+      reconnection: false,
+    });
+
+    try {
+      await new Promise((resolve, reject) => {
+        socket.once("connect", resolve);
+        socket.once("connect_error", reject);
+      });
+      // chờ server đưa socket vào các room conversation của Bình
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const got = new Promise((resolve, reject) => {
+        socket.once("message-reaction", resolve);
+        setTimeout(() => reject(new Error("Không nhận được message-reaction")), 5000);
+      });
+      const res = await react(A, "😮");
+      assert.equal(res.status, 200);
+      const event = await got;
+
+      assert.equal(event.messageId, messageId);
+      assert.equal(event.conversationId, groupAB._id.toString());
+      assert.ok(event.reactions.some((r) => r.userId === A._id.toString() && r.emoji === "😮"));
+    } finally {
+      socket.disconnect();
+    }
+  });
+});
+
 describe("Auth", () => {
   test("đăng ký trùng email trả 409 thay vì 500", async () => {
     const res = await request(app).post("/api/auth/signup").send({

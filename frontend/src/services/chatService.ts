@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import type { ConversationResponse, Message } from "@/types/chat";
+import type { ConversationResponse, Message, Reaction } from "@/types/chat";
 
 interface FetchMessageProps {
   messages: Message[];
@@ -57,6 +57,11 @@ export const chatService = {
       replyToId,
     });
     return res.data.message;
+  },
+
+  async toggleReaction(messageId: string, emoji: string): Promise<Reaction[]> {
+    const res = await api.post(`/messages/${messageId}/reactions`, { emoji });
+    return res.data.reactions;
   },
 
   async markAsSeen(conversationId: string) {

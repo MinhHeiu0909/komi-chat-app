@@ -51,6 +51,12 @@ export interface ReplyTo {
   content: string;
 }
 
+// mỗi người tối đa một cảm xúc cho mỗi tin
+export interface Reaction {
+  userId: string;
+  emoji: string;
+}
+
 export interface Message {
   _id: string;
   conversationId: string;
@@ -58,6 +64,7 @@ export interface Message {
   content: string | null;
   imgUrl?: string | null;
   replyTo?: ReplyTo;
+  reactions?: Reaction[];
   updatedAt?: string | null;
   createdAt: string;
   isOwn?: boolean;
