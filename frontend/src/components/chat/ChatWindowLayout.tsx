@@ -4,6 +4,7 @@ import { SidebarInset } from "../ui/sidebar";
 import ChatWindowHeader from "./ChatWindowHeader";
 import ChatWindowBody from "./ChatWindowBody";
 import MessageInput from "./MessageInput";
+import TypingIndicator from "./TypingIndicator";
 import { useEffect } from "react";
 import ChatWindowSkeleton from "./ChatWindowSkeleton";
 
@@ -53,6 +54,7 @@ const ChatWindowLayout = () => {
       </div>
 
       {/* Footer */}
+      <TypingIndicator convo={selectedConvo} />
       <MessageInput selectedConvo={selectedConvo} />
     </SidebarInset>
   );

@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { Conversation } from "@/types/chat";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useSocketStore } from "@/stores/useSocketStore";
 import { Button } from "../ui/button";
 import { ImagePlus, Send } from "lucide-react";
 import { Textarea } from "../ui/textarea";
@@ -10,6 +11,11 @@ import EmojiPicker from "./EmojiPicker";
 
 // ô nhập cao tối đa ~6 dòng, quá thì cuộn bên trong
 const MAX_INPUT_HEIGHT = 160;
+
+// "đang nhập…": nhắc lại typing:start mỗi 2,5 giây khi còn gõ (bên nhận
+// tự ẩn sau 5 giây), và báo dừng sau 3 giây không gõ
+const TYPING_RESEND_MS = 2500;
+const TYPING_IDLE_MS = 3000;
 
 const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   const { user } = useAuthStore();
@@ -27,6 +33,33 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
     el.style.overflowY = el.scrollHeight > MAX_INPUT_HEIGHT ? "auto" : "hidden";
   }, [value]);
 
+  const emitTyping = useSocketStore((s) => s.emitTyping);
+  const conversationId = selectedConvo._id;
+  const typing = useRef({ active: false, lastSentAt: 0, idleTimer: 0 });
+
+  const stopTyping = useCallback(() => {
+    window.clearTimeout(typing.current.idleTimer);
+    if (!typing.current.active) return;
+    typing.current.active = false;
+    emitTyping(conversationId, false);
+  }, [conversationId, emitTyping]);
+
+  const noteTyping = (text: string) => {
+    if (!text.trim()) return stopTyping();
+
+    const now = Date.now();
+    if (!typing.current.active || now - typing.current.lastSentAt > TYPING_RESEND_MS) {
+      emitTyping(conversationId, true);
+      typing.current.lastSentAt = now;
+    }
+    typing.current.active = true;
+    window.clearTimeout(typing.current.idleTimer);
+    typing.current.idleTimer = window.setTimeout(stopTyping, TYPING_IDLE_MS);
+  };
+
+  // đổi sang cuộc trò chuyện khác hoặc rời trang: báo dừng gõ ở cuộc cũ
+  useEffect(() => stopTyping, [stopTyping]);
+
   if (!user) return;
 
   const sendMessage = async () => {
@@ -34,6 +67,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
     const currValue = value.trim();
     if (!currValue) return;
     setValue("");
+    stopTyping();
 
     try {
       if (selectedConvo.type === "direct") {
@@ -77,7 +111,10 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
           maxLength={4000} // khớp MAX_MESSAGE_LENGTH ở backend
           onKeyDown={handleKeyDown}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            noteTyping(e.target.value);
+          }}
           placeholder="Soạn tin nhắn... (Shift+Enter để xuống dòng)"
           aria-label="Soạn tin nhắn"
           className="block min-h-9 py-2 pr-12 text-sm md:text-sm leading-5 bg-white border-border/50 focus:border-primary/50 transition-smooth"

@@ -72,6 +72,22 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // "đang nhập…": chuyển tiếp cho các thành viên khác trong room.
+  // Phải kiểm tra thành viên vì socket.to(room) vẫn phát được vào room
+  // mà socket gửi không ở trong đó. Client chỉ gửi typing:start tối đa
+  // vài giây một lần nên truy vấn DB ở đây không đáng kể.
+  const relayTyping = (isTyping) => async (conversationId) => {
+    try {
+      if (!(await userIsMemberOf(conversationId, userId))) return;
+      socket.to(conversationId).emit("typing", { conversationId, userId, isTyping });
+    } catch (error) {
+      console.error("Lỗi khi chuyển tiếp typing:", error);
+    }
+  };
+
+  socket.on("typing:start", relayTyping(true));
+  socket.on("typing:stop", relayTyping(false));
+
   socket.on("disconnect", () => {
     if (removeOnlineSocket(userId, socket.id)) {
       io.emit("online-users", getOnlineUserIds());

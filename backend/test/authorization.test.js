@@ -230,6 +230,48 @@ describe("Socket: chỉ thành viên mới vào được room", () => {
     }
   });
 
+  test("typing: thành viên báo được cho người khác, người ngoài thì không", async () => {
+    const [a, b, outsider] = await Promise.all([connect(A), connect(B), connect(C)]);
+    const roomId = groupAB._id.toString();
+
+    try {
+      const got = { a: [], b: [], outsider: [] };
+      a.on("typing", (e) => got.a.push(e));
+      b.on("typing", (e) => got.b.push(e));
+      outsider.on("typing", (e) => got.outsider.push(e));
+
+      // người ngoài cố phát vào room của nhóm: không ai được nhận
+      outsider.emit("typing:start", roomId);
+      // id rác cũng không được làm sập handler
+      outsider.emit("typing:start", "khong-phai-id");
+
+      const bGotStart = new Promise((resolve) => b.once("typing", resolve));
+      a.emit("typing:start", roomId);
+      assert.deepEqual(await bGotStart, {
+        conversationId: roomId,
+        userId: A._id.toString(),
+        isTyping: true,
+      });
+
+      const bGotStop = new Promise((resolve) => b.once("typing", resolve));
+      a.emit("typing:stop", roomId);
+      assert.equal((await bGotStop).isTyping, false);
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // B chỉ nhận đúng 2 sự kiện của A (không có sự kiện nào từ người ngoài)
+      assert.equal(got.b.length, 2);
+      assert.ok(got.b.every((e) => e.userId === A._id.toString()));
+      // người gửi không nhận lại sự kiện của chính mình, người ngoài không nghe được
+      assert.equal(got.a.length, 0);
+      assert.equal(got.outsider.length, 0);
+    } finally {
+      a.disconnect();
+      b.disconnect();
+      outsider.disconnect();
+    }
+  });
+
   test("token sai bị từ chối với mã lỗi để client biết cần refresh", async () => {
     const error = await new Promise((resolve) => {
       const socket = connectClient(baseUrl, {

@@ -75,8 +75,11 @@ export interface ChatState {
 export interface SocketState {
   socket: Socket | null;
   onlineUsers: string[];
+  // conversationId -> userId của những người khác đang gõ
+  typingUsers: Record<string, string[]>;
   connectSocket: () => void;
   disconnectSocket: () => void;
+  emitTyping: (conversationId: string, isTyping: boolean) => void;
 }
 
 export interface FriendState {
