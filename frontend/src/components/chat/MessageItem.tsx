@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { REACTIONS, groupReactions } from "@/lib/reactions";
+import SeenAvatars from "./SeenAvatars";
 
 const actionButtonClass =
   "self-center shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity";
@@ -33,7 +34,6 @@ interface MessageItemProps {
   index: number;
   messages: Message[];
   selectedConvo: Conversation;
-  lastMessageStatus: "delivered" | "seen";
 }
 
 const MessageItem = ({
@@ -41,7 +41,6 @@ const MessageItem = ({
   index,
   messages,
   selectedConvo,
-  lastMessageStatus,
 }: MessageItemProps) => {
   const prev = index + 1 < messages.length ? messages[index + 1] : undefined;
 
@@ -74,6 +73,19 @@ const MessageItem = ({
     toggleReaction(message.conversationId, message._id, emoji);
   const reactionGroups = groupReactions(message.reactions ?? []);
   const myReaction = message.reactions?.find((r) => r.userId === currentUserId)?.emoji;
+
+  // "Đã xem" chỉ tính cho tin cuối: server xoá seenBy mỗi khi có tin mới
+  const isLastMessage =
+    !message.status && message._id === selectedConvo.lastMessage?._id;
+  const seenUsers = isLastMessage
+    ? (selectedConvo.seenBy ?? [])
+        // dữ liệu cũ trong localStorage có thể chỉ là id
+        .map((s) => (typeof s === "string" ? { _id: s } : s))
+        .filter((s) => s._id !== currentUserId && s._id !== message.senderId)
+        // ưu tiên tên / avatar mới nhất trong danh sách thành viên
+        .map((s) => selectedConvo.participants.find((p) => p._id === s._id) ?? s)
+    : [];
+  const showSeenAvatars = selectedConvo.type === "group" && seenUsers.length > 0;
 
   // chỉ trả lời / thả cảm xúc được với tin đã lưu trên server
   const canAct = !message.status;
@@ -239,18 +251,21 @@ const MessageItem = ({
             </button>
           )}
 
-          {/* seen/ delivered */}
-          {message.isOwn && !message.status && message._id === selectedConvo.lastMessage?._id && (
+          {/* nhóm: avatar những người đã xem tin cuối */}
+          {showSeenAvatars && <SeenAvatars users={seenUsers} />}
+
+          {/* tin cuối của mình: đã gửi / đã xem (nhóm đã có avatar thì thôi) */}
+          {isLastMessage && message.isOwn && !showSeenAvatars && (
             <Badge
               variant="outline"
               className={cn(
                 "text-xs px-1.5 py-0.5 h-4 border-0",
-                lastMessageStatus === "seen"
+                seenUsers.length > 0
                   ? "bg-primary/20 text-primary"
                   : "bg-muted text-muted-foreground"
               )}
             >
-              {lastMessageStatus === "seen" ? "Đã xem" : "Đã gửi"}
+              {seenUsers.length > 0 ? "Đã xem" : "Đã gửi"}
             </Badge>
           )}
         </div>

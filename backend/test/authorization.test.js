@@ -431,6 +431,50 @@ describe("Cảm xúc (reaction)", () => {
   });
 });
 
+describe("Đã xem (seen) trong nhóm", () => {
+  test("người gửi nhận read-message kèm tên người đã xem", async () => {
+    const socket = connectClient(baseUrl, {
+      auth: { token: tokenFor(A) },
+      transports: ["websocket"],
+      reconnection: false,
+    });
+
+    try {
+      await new Promise((resolve, reject) => {
+        socket.once("connect", resolve);
+        socket.once("connect_error", reject);
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const sent = await request(app)
+        .post("/api/messages/group")
+        .set(auth(A))
+        .send({ conversationId: groupAB._id.toString(), content: "Mọi người đọc chưa?" });
+      assert.equal(sent.status, 201);
+
+      const got = new Promise((resolve, reject) => {
+        socket.once("read-message", resolve);
+        setTimeout(() => reject(new Error("Không nhận được read-message")), 5000);
+      });
+      const res = await request(app)
+        .patch(`/api/conversations/${groupAB._id}/seen`)
+        .set(auth(B));
+      assert.equal(res.status, 200);
+      const event = await got;
+
+      assert.equal(event.conversation._id, groupAB._id.toString());
+      assert.equal(event.lastMessage._id, sent.body.message._id);
+      assert.deepEqual(
+        event.conversation.seenBy.map((u) => ({ _id: u._id, displayName: u.displayName })),
+        [{ _id: B._id.toString(), displayName: B.displayName }],
+      );
+      assert.equal(event.conversation.unreadCounts[B._id.toString()], 0);
+    } finally {
+      socket.disconnect();
+    }
+  });
+});
+
 describe("Auth", () => {
   test("đăng ký trùng email trả 409 thay vì 500", async () => {
     const res = await request(app).post("/api/auth/signup").send({

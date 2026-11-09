@@ -131,6 +131,8 @@ export const useSocketStore = create<SocketState>((set, get) => {
           ...conversation,
           lastMessage,
           unreadCounts,
+          // server xoá danh sách "đã xem" mỗi khi có tin mới
+          seenBy: [],
         };
 
         if (useChatStore.getState().activeConversationId === message.conversationId) {

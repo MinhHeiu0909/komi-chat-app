@@ -151,11 +151,18 @@ export const markAsSeen = async (req, res) => {
         $addToSet: { seenBy: userId },
         $set: { [`unreadCounts.${userId}`]: 0 },
       },
-      { new: true },
-    );
+      { returnDocument: "after" },
+    ).populate("seenBy", "displayName avatarUrl");
 
+    // Chỉ gửi những gì client cần; seenBy kèm tên + avatar để hiện "đã xem"
+    // trong nhóm (trước đây chỉ là mảng id nên client không biết ai đã xem).
     io.to(conversationId).emit("read-message", {
-      conversation: updated,
+      conversation: {
+        _id: updated._id,
+        lastMessageAt: updated.lastMessageAt,
+        unreadCounts: Object.fromEntries(updated.unreadCounts ?? []),
+        seenBy: updated.seenBy,
+      },
       lastMessage: {
         _id: updated.lastMessage._id,
         content: updated.lastMessage.content,
