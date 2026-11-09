@@ -76,15 +76,19 @@ cd frontend && npm run build
 - Push từ máy: lần đầu cần chạy với `GCM_INTERACTIVE=always` để Git Credential Manager mở cửa sổ đăng nhập GitHub (shell của Claude tắt lời nhắc tương tác).
 
 **Giai đoạn 1 — UX chat: đang làm** (nhánh `phase-1-chat-ux`, tách từ `main` sau khi merge Giai đoạn 0)
-- Thứ tự dự kiến: textarea tự giãn + Shift+Enter → typing indicator → reply → reaction → avatar "đã xem" trong nhóm → markdown/code block → gửi ảnh → hoàn thiện/ẩn nút chết.
-- Cần hỏi chủ repo trước khi thêm thư viện render markdown; gửi ảnh cần khoá Cloudinary trong `backend/.env`.
+- Thứ tự: textarea tự giãn + Shift+Enter → typing indicator → reply → reaction → avatar "đã xem" trong nhóm → markdown/code block → gửi ảnh → hoàn thiện/ẩn nút chết.
+- **Đã xong (2026-11-10), mỗi việc một commit, đã thử trên trình duyệt:** 7 việc đầu. Còn lại: nút chết (`PrivacySettings`, toggle online trong `PreferencesForm`). `npm test` backend 26/26.
+- Markdown: chủ repo đã duyệt `react-markdown` + `remark-gfm` (+ `remark-breaks` để Enter một lần vẫn xuống dòng). HTML thô hiện thành chữ, ảnh trong markdown không tải. Danh sách chat và trích dẫn reply vẫn hiện ký hiệu markdown thô.
+- Gửi ảnh: tải lên trước (`POST /api/messages/images`, Cloudinary, thư mục `komi_chat/messages/<userId>`), rồi gửi tin kèm `imgUrl`; server chỉ nhận `imgUrl` là ảnh Cloudinary của app trong thư mục của chính người gửi (`isOwnMessageImageUrl`). Test thay `imageStorage` bằng bản giả.
+- Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore), rồi `docker compose up -d backend`. Chạy backend trực tiếp thì dùng `backend/.env`.
+- Khi thử trên trình duyệt: ảnh chụp màn hình của công cụ có thể nhỏ hơn viewport (800×600 so với 1024×768) — toạ độ bấm phải quy đổi.
 
 Nợ kỹ thuật đã biết:
 - `npm audit` báo lỗ hổng trong dependencies (backend: 1 critical, 3 high), chưa xử lý.
-- Mongoose cảnh báo option `new` của `findOneAndUpdate` đã lỗi thời (nên đổi sang `returnDocument: 'after'`).
+- Mongoose cảnh báo option `new` của `findOneAndUpdate` đã lỗi thời; đã đổi ở `markAsSeen` và `updateConversationAfterCreateMessage`, còn sót ở nơi khác (vd. `uploadAvatar`).
 - Bundle frontend > 500 kB, chưa code-split.
 - Chưa rotate refresh token (cần grace period để không đăng xuất người dùng nhiều tab).
-- CI chưa chạy `npm run lint` vì chưa biết lint có sạch không.
+- CI chưa chạy `npm run lint`: lint frontend chưa sạch ở file cũ (vd. `EmojiPicker.tsx` dùng `any`); file mới của Giai đoạn 1 đã sạch.
 - Các nút trong `PrivacySettings` và toggle trạng thái online trong `PreferencesForm` chưa có logic.
 - Cursor phân trang chỉ theo `createdAt`; tin trùng mili-giây có thể bị bỏ sót.
 
