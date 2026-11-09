@@ -3,7 +3,7 @@ import type { Conversation } from "@/types/chat";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSocketStore } from "@/stores/useSocketStore";
 import { Button } from "../ui/button";
-import { ImagePlus, Send } from "lucide-react";
+import { ImagePlus, Reply, Send, X } from "lucide-react";
 import { Textarea } from "../ui/textarea";
 import { useChatStore } from "@/stores/useChatStore";
 import { toast } from "sonner";
@@ -19,9 +19,14 @@ const TYPING_IDLE_MS = 3000;
 
 const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   const { user } = useAuthStore();
-  const { sendDirectMessage, sendGroupMessage } = useChatStore();
+  const { sendDirectMessage, sendGroupMessage, replyingTo, setReplyingTo } = useChatStore();
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // vừa bấm "Trả lời" thì đưa con trỏ vào ô nhập luôn
+  useEffect(() => {
+    if (replyingTo) textareaRef.current?.focus();
+  }, [replyingTo]);
 
   // tự giãn theo nội dung: đặt về auto rồi lấy scrollHeight
   // (không dùng CSS field-sizing vì Firefox chưa hỗ trợ)
@@ -66,16 +71,18 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
     // backend cũng trim; trim ở đây để bản "đang gửi" giống bản thật
     const currValue = value.trim();
     if (!currValue) return;
+    const replyTo = replyingTo;
     setValue("");
+    setReplyingTo(null);
     stopTyping();
 
     try {
       if (selectedConvo.type === "direct") {
         const participants = selectedConvo.participants;
         const otherUser = participants.filter((p) => p._id !== user._id)[0];
-        await sendDirectMessage(otherUser._id, currValue);
+        await sendDirectMessage(otherUser._id, currValue, undefined, replyTo);
       } else {
-        await sendGroupMessage(selectedConvo._id, currValue);
+        await sendGroupMessage(selectedConvo._id, currValue, undefined, replyTo);
       }
     } catch (error) {
       console.error(error);
@@ -84,6 +91,12 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape" && replyingTo) {
+      e.preventDefault();
+      setReplyingTo(null);
+      return;
+    }
+
     // Enter gửi, Shift+Enter xuống dòng (mặc định của textarea).
     // isComposing: đang gõ dở bằng bộ gõ (Telex/VNI, IME), Enter lúc này
     // là để chốt chữ chứ không phải để gửi
@@ -93,9 +106,36 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
     }
   };
 
+  const replyName = replyingTo
+    ? replyingTo.senderId === user._id
+      ? "chính bạn"
+      : selectedConvo.participants.find((p) => p._id === replyingTo.senderId)?.displayName ?? "tin nhắn"
+    : "";
+
   return (
-    // items-end: khi ô nhập giãn cao, các nút nằm ở dòng cuối
-    <div className="flex items-end gap-2 p-3 min-h-14 bg-background">
+    <div className="bg-background">
+      {/* thanh "Đang trả lời"; Esc hoặc nút X để huỷ */}
+      {replyingTo && (
+        <div className="mx-3 mt-2 flex items-start gap-2 rounded-md border-l-2 border-primary bg-primary/5 px-3 py-1.5 text-xs">
+          <Reply className="size-3.5 mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <span className="block font-semibold text-primary">Đang trả lời {replyName}</span>
+            <span className="block truncate text-muted-foreground">{replyingTo.content}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReplyingTo(null)}
+            aria-label="Huỷ trả lời"
+            title="Huỷ (Esc)"
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+    {/* items-end: khi ô nhập giãn cao, các nút nằm ở dòng cuối */}
+    <div className="flex items-end gap-2 p-3 min-h-14">
       <Button
         variant="ghost"
         size="icon"
@@ -142,6 +182,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
       >
         <Send className="size-4 text-white" />
       </Button>
+    </div>
     </div>
   );
 };

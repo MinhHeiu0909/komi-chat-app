@@ -48,15 +48,20 @@ export interface ChatState {
   setActiveConversation: (id: string | null) => void;
   fetchConversations: () => Promise<void>;
   fetchMessages: (conversationId?: string) => Promise<void>;
+  // tin đang được trả lời (thanh "Đang trả lời" phía trên ô nhập)
+  replyingTo: Message | null;
+  setReplyingTo: (message: Message | null) => void;
   sendDirectMessage: (
     recipientId: string,
     content: string,
-    imgUrl?: string
+    imgUrl?: string,
+    replyTo?: Message | null
   ) => Promise<void>;
   sendGroupMessage: (
     conversationId: string,
     content: string,
-    imgUrl?: string
+    imgUrl?: string,
+    replyTo?: Message | null
   ) => Promise<void>;
   // add message
   addMessage: (message: Message) => Promise<void>;

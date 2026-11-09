@@ -289,6 +289,66 @@ describe("Socket: chỉ thành viên mới vào được room", () => {
   });
 });
 
+describe("Trả lời (reply) tin nhắn", () => {
+  const PRIVATE = "Tin nhắn riêng tư giữa An và Bình";
+
+  test("trả lời tin trong cùng nhóm lưu kèm bản trích", async () => {
+    const original = await request(app)
+      .post("/api/messages/group")
+      .set(auth(A))
+      .send({ conversationId: groupAB._id.toString(), content: "Họp lúc 14h nhé" });
+    assert.equal(original.status, 201);
+
+    const res = await request(app)
+      .post("/api/messages/group")
+      .set(auth(B))
+      .send({
+        conversationId: groupAB._id.toString(),
+        content: "Ok",
+        replyToId: original.body.message._id,
+      });
+
+    assert.equal(res.status, 201);
+    assert.deepEqual(res.body.message.replyTo, {
+      messageId: original.body.message._id,
+      senderId: A._id.toString(),
+      content: "Họp lúc 14h nhé",
+    });
+  });
+
+  test("không trả lời được tin ở cuộc trò chuyện khác (không lộ nội dung)", async () => {
+    const privateMsg = await models.Message.findOne({ conversationId: directAB._id, content: PRIVATE });
+    const before = await models.Message.countDocuments();
+
+    // Chi (bạn của An) gửi tin 1-1 cho An, kèm id tin riêng của An và Bình
+    const fromOutsider = await request(app)
+      .post("/api/messages/direct")
+      .set(auth(C))
+      .send({ recipientId: A._id.toString(), content: "xem trộm", replyToId: privateMsg._id.toString() });
+
+    assert.equal(fromOutsider.status, 400);
+    assert.ok(!JSON.stringify(fromOutsider.body).includes(PRIVATE));
+
+    // Bình là thành viên cả hai nơi nhưng vẫn không được trích tin 1-1 sang nhóm
+    const crossConvo = await request(app)
+      .post("/api/messages/group")
+      .set(auth(B))
+      .send({ conversationId: groupAB._id.toString(), content: "chuyển tiếp", replyToId: privateMsg._id.toString() });
+
+    assert.equal(crossConvo.status, 400);
+    assert.equal(await models.Message.countDocuments(), before);
+  });
+
+  test("replyToId sai định dạng trả 400", async () => {
+    const res = await request(app)
+      .post("/api/messages/group")
+      .set(auth(A))
+      .send({ conversationId: groupAB._id.toString(), content: "hi", replyToId: "abc" });
+
+    assert.equal(res.status, 400);
+  });
+});
+
 describe("Auth", () => {
   test("đăng ký trùng email trả 409 thay vì 500", async () => {
     const res = await request(app).post("/api/auth/signup").send({

@@ -327,6 +327,21 @@
       transform: translateY(0) scale(1);
     }
   }
+
+  /* Nháy nền khi bấm trích dẫn để nhảy tới tin gốc */
+  .reply-target-flash {
+    animation: replyTargetFlash 1.5s ease-out;
+  }
+
+  @keyframes replyTargetFlash {
+    0%,
+    40% {
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 45%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 3px transparent;
+    }
+  }
 }
 
 :root {

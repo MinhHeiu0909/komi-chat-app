@@ -82,7 +82,8 @@ export const useChatStore = create<ChatState>()(
       const deliver = async (
         conversationId: string,
         content: string,
-        clientId: string
+        clientId: string,
+        replyToId?: string
       ) => {
         const { user } = useAuthStore.getState();
         const convo = get().conversations.find((c) => c._id === conversationId);
@@ -102,14 +103,16 @@ export const useChatStore = create<ChatState>()(
               content,
               undefined,
               conversationId,
-              clientId
+              clientId,
+              replyToId
             );
           } else {
             message = await chatService.sendGroupMessage(
               conversationId,
               content,
               undefined,
-              clientId
+              clientId,
+              replyToId
             );
           }
 
@@ -126,11 +129,17 @@ export const useChatStore = create<ChatState>()(
         }
       };
 
-      const sendOptimistic = async (conversationId: string, content: string) => {
+      const sendOptimistic = async (
+        conversationId: string,
+        content: string,
+        replyTo?: Message | null
+      ) => {
         const { user } = useAuthStore.getState();
         if (!user) return;
 
         const clientId = newClientId();
+        // chỉ trả lời được tin đã lưu (có _id thật), không phải tin "đang gửi"
+        const replyTarget = replyTo && !replyTo.status ? replyTo : null;
 
         updateItems(conversationId, (items) => [
           ...items,
@@ -143,26 +152,38 @@ export const useChatStore = create<ChatState>()(
             createdAt: new Date().toISOString(),
             isOwn: true,
             status: "sending",
+            // bản trích tạm, server sẽ trả về bản chính thức
+            ...(replyTarget && {
+              replyTo: {
+                messageId: replyTarget._id,
+                senderId: replyTarget.senderId,
+                content: (replyTarget.content ?? "").slice(0, 200),
+              },
+            }),
           },
         ]);
 
-        await deliver(conversationId, content, clientId);
+        await deliver(conversationId, content, clientId, replyTarget?._id);
       };
 
       return {
         conversations: [],
         messages: {},
         activeConversationId: null,
+        replyingTo: null,
         convoLoading: false,
         messageLoading: false,
         loading: false,
 
-        setActiveConversation: (id) => set({ activeConversationId: id }),
+        // đổi cuộc trò chuyện thì bỏ tin đang trả lời của cuộc cũ
+        setActiveConversation: (id) => set({ activeConversationId: id, replyingTo: null }),
+        setReplyingTo: (message) => set({ replyingTo: message }),
         reset: () => {
           set({
             conversations: [],
             messages: {},
             activeConversationId: null,
+            replyingTo: null,
             convoLoading: false,
             messageLoading: false,
           });
@@ -231,11 +252,11 @@ export const useChatStore = create<ChatState>()(
             set({ messageLoading: false });
           }
         },
-        sendDirectMessage: async (recipientId, content, imgUrl) => {
+        sendDirectMessage: async (recipientId, content, imgUrl, replyTo) => {
           const { activeConversationId } = get();
 
           if (activeConversationId) {
-            await sendOptimistic(activeConversationId, content);
+            await sendOptimistic(activeConversationId, content, replyTo);
             return;
           }
 
@@ -251,8 +272,8 @@ export const useChatStore = create<ChatState>()(
             console.error("Lỗi xảy ra khi gửi direct message", error);
           }
         },
-        sendGroupMessage: async (conversationId, content) => {
-          await sendOptimistic(conversationId, content);
+        sendGroupMessage: async (conversationId, content, _imgUrl, replyTo) => {
+          await sendOptimistic(conversationId, content, replyTo);
         },
         retryMessage: async (conversationId, clientId) => {
           const pending = get().messages[conversationId]?.items.find((m) =>
@@ -260,7 +281,12 @@ export const useChatStore = create<ChatState>()(
           );
           if (!pending || pending.status !== "failed") return;
 
-          await deliver(conversationId, pending.content ?? "", clientId);
+          await deliver(
+            conversationId,
+            pending.content ?? "",
+            clientId,
+            pending.replyTo?.messageId
+          );
         },
         addMessage: async (message) => {
           try {
@@ -337,7 +363,7 @@ export const useChatStore = create<ChatState>()(
               conversations: exists
                 ? state.conversations
                 : [convo, ...state.conversations],
-              ...(activate ? { activeConversationId: convo._id } : {}),
+              ...(activate ? { activeConversationId: convo._id, replyingTo: null } : {}),
             };
           });
         },

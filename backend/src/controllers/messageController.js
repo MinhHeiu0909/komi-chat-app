@@ -29,12 +29,45 @@ const readClientId = (body) =>
     ? body.clientId
     : undefined;
 
-const createAndEmit = async (conversation, senderId, content, clientId) => {
+// Độ dài tối đa của đoạn trích tin gốc lưu trong replyTo
+export const REPLY_SNIPPET_LENGTH = 200;
+
+/**
+ * Đọc replyToId và tạo bản trích của tin gốc.
+ * Tin gốc phải thuộc đúng conversation đang gửi: nếu không, người dùng có thể
+ * đưa id của tin ở conversation khác vào để đọc lén nội dung của nó.
+ * Không phân biệt "không tồn tại" và "ở conversation khác" để không lộ thông tin.
+ */
+const readReplyTo = async (body, conversationId) => {
+  const replyToId = body?.replyToId;
+  if (replyToId === undefined || replyToId === null || replyToId === "") return {};
+
+  const invalid = { error: "Tin nhắn được trả lời không hợp lệ" };
+  if (!isValidObjectId(replyToId)) return invalid;
+
+  const original = await Message.findOne(
+    { _id: replyToId, conversationId },
+    { senderId: 1, content: 1, imgUrl: 1 },
+  ).lean();
+  if (!original) return invalid;
+
+  const text = original.content || (original.imgUrl ? "[Hình ảnh]" : "");
+  return {
+    replyTo: {
+      messageId: original._id,
+      senderId: original.senderId,
+      content: text.slice(0, REPLY_SNIPPET_LENGTH),
+    },
+  };
+};
+
+const createAndEmit = async (conversation, senderId, content, clientId, replyTo) => {
   const message = await Message.create({
     conversationId: conversation._id,
     senderId,
     content,
     clientId,
+    replyTo,
   });
 
   const updated = await updateConversationAfterCreateMessage(
@@ -90,11 +123,15 @@ export const sendDirectMessage = async (req, res) => {
       }
     }
 
+    const reply = await readReplyTo(req.body, conversation._id);
+    if (reply.error) return res.status(400).json({ message: reply.error });
+
     const message = await createAndEmit(
       conversation,
       senderId,
       content,
       readClientId(req.body),
+      reply.replyTo,
     );
 
     return res.status(201).json({ message });
@@ -117,11 +154,15 @@ export const sendGroupMessage = async (req, res) => {
     const { content, error } = readContent(req.body);
     if (error) return res.status(400).json({ message: error });
 
+    const reply = await readReplyTo(req.body, conversation._id);
+    if (reply.error) return res.status(400).json({ message: reply.error });
+
     const message = await createAndEmit(
       conversation,
       senderId,
       content,
       readClientId(req.body),
+      reply.replyTo,
     );
 
     return res.status(201).json({ message });

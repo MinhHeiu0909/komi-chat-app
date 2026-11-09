@@ -25,6 +25,19 @@ const messageSchema = new mongoose.Schema(
       type: String,
       maxlength: 64,
     },
+    // Tin đang được trả lời. Lưu bản trích (snapshot) để hiển thị không cần
+    // truy vấn thêm; tin gốc luôn thuộc cùng conversation (controller kiểm tra).
+    replyTo: {
+      type: new mongoose.Schema(
+        {
+          messageId: { type: mongoose.Schema.Types.ObjectId, ref: "Message", required: true },
+          senderId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+          content: { type: String, default: "" },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
   },
   {
     timestamps: true,
