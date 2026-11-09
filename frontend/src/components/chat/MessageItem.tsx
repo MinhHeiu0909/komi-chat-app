@@ -44,8 +44,9 @@ const MessageItem = ({
 }: MessageItemProps) => {
   const prev = index + 1 < messages.length ? messages[index + 1] : undefined;
 
+  // messages đã đảo ngược (mới nhất ở index 0), prev là tin cũ hơn liền trước.
+  // Hiện giờ khi cách tin trước > 5 phút; tin cũ nhất đã tải (không có prev) luôn hiện.
   const isShowTime =
-    index === 0 ||
     new Date(message.createdAt).getTime() -
       new Date(prev?.createdAt || 0).getTime() >
       300000; // 5 phút
@@ -141,13 +142,6 @@ const MessageItem = ({
 
   return (
     <>
-      {/* time */}
-      {isShowTime && (
-        <span className="flex justify-center text-xs text-muted-foreground px-1">
-          {formatMessageTime(new Date(message.createdAt))}
-        </span>
-      )}
-
       <div
         id={`msg-${message._id}`}
         className={cn(
@@ -273,6 +267,14 @@ const MessageItem = ({
         {/* tin của người khác: các nút nằm bên phải bong bóng */}
         {!message.isOwn && actions}
       </div>
+
+      {/* Nhãn giờ đặt SAU tin trong JSX: danh sách hiển thị bằng
+          flex-col-reverse nên nó sẽ nằm phía TRÊN tin trên màn hình */}
+      {isShowTime && (
+        <span className="flex justify-center text-xs text-muted-foreground px-1 pt-2">
+          {formatMessageTime(new Date(message.createdAt))}
+        </span>
+      )}
     </>
   );
 };
