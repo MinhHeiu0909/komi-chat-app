@@ -11,6 +11,7 @@ import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { REACTIONS, groupReactions } from "@/lib/reactions";
 import SeenAvatars from "./SeenAvatars";
+import MessageContent from "./MessageContent";
 
 const actionButtonClass =
   "self-center shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity";
@@ -168,14 +169,15 @@ const MessageItem = ({
         {/* tin nhắn */}
         <div
           className={cn(
-            "max-w-xs lg:max-w-md space-y-1 flex flex-col",
+            "max-w-xs lg:max-w-md min-w-0 space-y-1 flex flex-col",
             message.isOwn ? "items-end" : "items-start"
           )}
         >
           <Card
             data-bubble
             className={cn(
-              "p-3 transition-opacity",
+              // max-w-full: khối code / bảng dài thì cuộn ngang bên trong, không đẩy bong bóng tràn ra
+              "p-3 transition-opacity max-w-full min-w-0",
               message.isOwn ? "chat-bubble-sent border-0" : "chat-bubble-received",
               isSending && "opacity-70",
               isFailed && "ring-1 ring-destructive"
@@ -201,7 +203,7 @@ const MessageItem = ({
                 </span>
               </button>
             )}
-            <p className="text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">{message.content}</p>
+            {message.content && <MessageContent content={message.content} />}
           </Card>
 
           {/* cảm xúc: bấm vào một ô để thả / gỡ đúng cảm xúc đó */}
