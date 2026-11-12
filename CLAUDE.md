@@ -4,7 +4,12 @@ Hướng dẫn cho Claude khi làm việc trong repo này. Trả lời và viế
 
 ## Mục tiêu project
 
-Komi là app chat realtime kiểu Messenger. Chủ repo đang nâng cấp nó thành project portfolio để **ứng tuyển vị trí AI Engineer**: giữ Komi làm nền realtime, rồi xây thêm lớp AI có thể đo lường được (trợ lý trong chat, RAG trên lịch sử chat, eval, kiểm duyệt). Mỗi tính năng AI nên đi kèm số liệu đánh giá.
+Komi là app chat realtime kiểu Messenger **cho dân văn phòng làm việc với nhau**, có trợ lý AI ("Komi AI") để tóm tắt hội thoại và tra cứu tài liệu: file gửi trong chat, lịch sử tin nhắn, kho tài liệu chung.
+
+Thứ tự ưu tiên:
+
+1. **Sản phẩm dùng được trước.** Giữ mọi tính năng ở mức đơn giản nhất chạy được. Không thêm tính năng ngoài lộ trình bên dưới: chủ repo sẽ dùng thử rồi mới quyết định thêm gì.
+2. **Portfolio ứng tuyển AI Engineer sau.** Số liệu đánh giá (eval) được thêm ở Giai đoạn 4, không phải điều kiện của từng tính năng.
 
 ## Quy tắc làm việc (bắt buộc)
 
@@ -23,8 +28,8 @@ backend/    Express 5 + Socket.IO + Mongoose (JavaScript, ESM)
   src/server.js         entrypoint: nạp env, kết nối DB, listen
   src/socket/index.js   Socket.IO server, online users, announceConversation()
   src/controllers/      auth, user, friend, conversation, message
-  src/middlewares/      authMiddleware, conversationMiddleware (kiểm tra thành viên), friendMiddleware, rateLimit, socketMiddleware
-  src/utils/            messageHelper, directConversation, conversationFormat
+  src/middlewares/      authMiddleware, conversationMiddleware (kiểm tra thành viên), friendMiddleware, rateLimit, socketMiddleware, uploadMiddleware
+  src/utils/            messageHelper, directConversation, conversationFormat, messageImage
   scripts/seed.js       dữ liệu demo tiếng Việt
   test/                 test tích hợp (node:test + supertest + mongodb-memory-server)
 frontend/   React 19 + Vite + TypeScript + Zustand + Tailwind 4 + shadcn/ui
@@ -58,34 +63,32 @@ cd frontend && npm run build
 - `dotenv/config` phải là import đầu tiên của `server.js`.
 - Ô nhập tin: không gửi khi `e.nativeEvent.isComposing` (bộ gõ tiếng Việt).
 
+## Quy ước cho phần AI (từ Giai đoạn 2)
+
+- **Phần AI viết trong backend Node**, thư mục dự kiến `backend/src/ai/`. Không thêm service Python, Redis hay hàng đợi khi chưa hỏi chủ repo.
+- **Mọi lời gọi LLM đi qua một lớp `LLMProvider`** theo chuẩn OpenAI-compatible, cấu hình bằng `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` (thêm vào `.env.example` khi viết code). Đổi nhà cung cấp chỉ sửa biến môi trường, không sửa code.
+- **Test và CI dùng provider giả** (`LLM_PROVIDER=fake`: trả lời cố định, không gọi mạng), giống cách test đang thay `imageStorage`. Không test nào được gọi API thật.
+- **Không tốn tiền ở giai đoạn dev:** chỉ dùng key free tier không gắn thẻ (chính: Gemini qua Google AI Studio; dự phòng: Groq). Không bật billing, không đổi sang model trả phí khi chưa hỏi. Gặp lỗi 429 (hết hạn mức) thì báo người dùng thử lại sau, không tự gọi lại liên tục.
+- **API key chỉ nằm ở backend.** Không bao giờ đưa vào biến `VITE_*` hay trả về client.
+- **Hạn mức số lần hỏi AI mỗi user mỗi ngày**, để một người không dùng hết hạn mức free của cả app.
+- **Lọc theo quyền của người hỏi** trước khi đưa bất kỳ tin nhắn hay file nào vào prompt (xem bất biến phân quyền ở trên).
+- **Nội dung tin nhắn và file là dữ liệu, không phải chỉ dẫn** cho model.
+- **Chỉ dùng dữ liệu mẫu khi dev:** nhà cung cấp có thể dùng dữ liệu gửi qua free tier để huấn luyện model, nên không đưa tài liệu công ty thật vào.
+
 ## Trạng thái hiện tại
 
-**Giai đoạn 0 — Nền tảng: đã xong** (nhánh `phase-0-foundation`)
-- Vá 4 lỗ hổng phân quyền, chống trùng chat 1-1, update nguyên tử, online đa tab, rate limit, validate đăng ký.
-- Optimistic UI + thử lại khi gửi lỗi; socket tự refresh token.
-- Test tích hợp, Docker Compose, seed, CI (GitHub Actions), README.
+- **Giai đoạn 0 (nền tảng) và Giai đoạn 1 (UX chat): đã xong**, đã merge vào `main` (PR #1, PR #2). Chi tiết từng việc và kết quả kiểm chứng: `docs/PROGRESS.md`.
+- **Giai đoạn 2 — Komi AI cơ bản: đang làm** trên nhánh `phase-2-komi-ai` (tách từ `main` sau PR #2, đã có trên origin). Chưa có code AI nào.
+- Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
+- `npm test` backend: 32/32 (2026-11-10).
 
-Đã kiểm chứng trên máy (2026-11-09):
-- `package-lock.json` backend đã cập nhật; `npm test` qua 12/12 (chạy trên Node 26).
-- Frontend `npm ci` + `npm run build` qua. `frontend/.npmrc` đặt `legacy-peer-deps=true` vì `@emoji-mart/react` 1.1.1 chỉ khai báo React ≤18 (chạy được với React 19); Dockerfile frontend copy file này.
-- `docker compose up --build` + seed chạy được; đã thử đăng nhập, gửi tin, đăng ký trên trình duyệt.
-- Tài khoản demo: `an.nguyen`, `binh`, `chi`, `dung`, `hoa` / `komi123` (username phải 3–30 ký tự).
+Ghi chú vận hành:
 
-- CI trên GitHub xanh (job backend chạy test trên Node 22, job frontend build); PR #1 đã merge vào `main`.
-- `ci.yml` chỉ chạy khi push lên `main` hoặc mở PR — muốn CI chạy cho nhánh giai đoạn thì mở PR.
-- Push từ máy: lần đầu cần chạy với `GCM_INTERACTIVE=always` để Git Credential Manager mở cửa sổ đăng nhập GitHub (shell của Claude tắt lời nhắc tương tác).
-
-**Giai đoạn 1 — UX chat: đã xong** (nhánh `phase-1-chat-ux`; PR #2 đã merge vào `main` ngày 2026-11-10, CI xanh)
-- Máy không có `gh`: PR được mở/merge qua giao diện GitHub. CI có lần lỗi "Internal server error" phía GitHub (không chạy job nào) — bấm "Re-run all jobs" là qua.
-- Thứ tự: textarea tự giãn + Shift+Enter → typing indicator → reply → reaction → avatar "đã xem" trong nhóm → markdown/code block → gửi ảnh → hoàn thiện/ẩn nút chết.
-- **Đã xong cả 8 việc (2026-11-10)**, mỗi việc một commit, đã thử trên trình duyệt. `npm test` backend 32/32.
-- Nút chết: chủ repo chọn làm thật sửa hồ sơ (`PATCH /api/users/me`), ẩn trạng thái online (`User.showOnlineStatus`, server lọc khỏi `online-users`), đổi mật khẩu (`POST /api/users/me/password`, xoá session khác); đã bỏ "Cài đặt thông báo", "Chặn & Báo cáo", "Xoá tài khoản" và dấu "…" ở danh sách chat.
-- Markdown: chủ repo đã duyệt `react-markdown` + `remark-gfm` (+ `remark-breaks` để Enter một lần vẫn xuống dòng). HTML thô hiện thành chữ, ảnh trong markdown không tải. Danh sách chat và trích dẫn reply vẫn hiện ký hiệu markdown thô.
-- Gửi ảnh: tải lên trước (`POST /api/messages/images`, Cloudinary, thư mục `komi_chat/messages/<userId>`), rồi gửi tin kèm `imgUrl`; server chỉ nhận `imgUrl` là ảnh Cloudinary của app trong thư mục của chính người gửi (`isOwnMessageImageUrl`). Test thay `imageStorage` bằng bản giả.
-- Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore), rồi `docker compose up -d backend`. Chạy backend trực tiếp thì dùng `backend/.env`.
-- Khi thử trên trình duyệt: ảnh chụp màn hình của công cụ có thể nhỏ hơn viewport (800×600 so với 1024×768) — toạ độ bấm phải quy đổi.
-
-**Giai đoạn 2 — Komi AI: chưa bắt đầu** (nhánh `phase-2-komi-ai`, tách từ `main` sau khi merge Giai đoạn 1; chưa push)
+- Tài khoản demo: `an.nguyen`, `binh`, `chi`, `dung`, `hoa` / `komi123`.
+- Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore). Chạy backend trực tiếp thì dùng `backend/.env`.
+- `frontend/.npmrc` đặt `legacy-peer-deps=true` vì `@emoji-mart/react` chỉ khai báo React ≤18. Không xoá file này.
+- CI chỉ chạy khi push lên `main` hoặc mở PR. Máy không có `gh`: chủ repo mở/merge PR qua giao diện GitHub.
+- Xong một việc: cập nhật ngắn gọn mục này, ghi chi tiết vào `docs/PROGRESS.md`.
 
 Nợ kỹ thuật đã biết:
 - `npm audit` báo lỗ hổng trong dependencies (backend: 1 critical, 3 high), chưa xử lý.
@@ -101,11 +104,16 @@ Nợ kỹ thuật đã biết:
 
 | Giai đoạn | Nội dung | Xong khi |
 | --- | --- | --- |
-| 1 · UX chat (tuần 2–3) | Gửi ảnh (backend đã có `imgUrl` + Cloudinary), textarea tự giãn + Shift+Enter, reply, reaction, typing indicator, avatar "đã xem" trong nhóm, render markdown + code block, hoàn thiện hoặc ẩn nút chưa có logic | Demo không còn nút bấm chết |
-| 2 · Komi AI (tuần 3–4) | User hệ thống "Komi AI": DM với bot và `@komi` trong nhóm; trả lời streaming qua socket (`ai:token`, `ai:done`, nút dừng); tool calling (`search_messages`, `summarize_conversation`, `create_reminder`, `create_poll`); lớp `LLMProvider` đổi model bằng cấu hình, timeout/retry/fallback; hạn mức token mỗi user | Mọi tool tôn trọng quyền của người hỏi |
-| 3 · RAG + eval (tuần 5–6) | Ingest bất đồng bộ (BullMQ + Redis) → embedding → vector store (ưu tiên MongoDB Atlas Vector Search; phương án khác: Qdrant, pgvector); hybrid search + rerank; lọc theo quyền ngay trong truy vấn; câu trả lời có trích dẫn nhảy tới tin gốc; so sánh 2–3 model embedding trên bộ câu hỏi tiếng Việt tự soạn | Có recall@k trên bộ eval, chạy trong CI |
-| 4 · Hoàn thiện (tuần 7–9) | Fine-tune mô hình kiểm duyệt tiếng Việt (ví dụ PhoBERT) và so với gọi LLM; trace mỗi lần gọi LLM (ví dụ Langfuse) + dashboard chi phí; chống prompt injection từ nội dung tin nhắn; README có GIF demo, sơ đồ kiến trúc, bảng eval; deploy công khai có giới hạn chi phí | Link demo + bảng eval trong README |
+| 2 · Komi AI cơ bản | User hệ thống "Komi AI": nhắn riêng với bot và `@komi` trong nhóm; trả lời streaming qua socket (`ai:token`, `ai:done`, nút dừng); `LLMProvider` (bản giả + bản OpenAI-compatible); hạn mức mỗi user/ngày; tóm tắt tin chưa đọc ("tôi đã bỏ lỡ gì") | Chat được với bot; test chạy bằng provider giả; bot chỉ đọc conversation mà người hỏi là thành viên |
+| 3 · Tài liệu trong chat | Gửi file PDF/Word trong chat; trích chữ từ file; hỏi đáp trên file của cuộc trò chuyện, có trích dẫn tới file/trang; tìm tin nhắn theo từ khoá | Hỏi về file vừa gửi, bot trả lời đúng và chỉ ra nguồn |
+| 4 · Kho tài liệu chung + RAG | Trang tải tài liệu chung; embedding + vector search (ưu tiên MongoDB Atlas Vector Search); hỏi trên cả lịch sử chat và kho chung, lọc theo quyền ngay trong truy vấn; bộ eval nhỏ bằng script Python chạy offline | Có recall@k trên bộ câu hỏi tiếng Việt tự soạn |
+| 5 · Hoàn thiện | Theo dõi chi phí mỗi lần gọi LLM; chống prompt injection; deploy công khai có giới hạn chi phí; README có GIF demo, sơ đồ kiến trúc, bảng eval | Có link demo |
 
-Kiến trúc mục tiêu: giữ backend Node cho realtime; thêm **service Python (FastAPI)** cho toàn bộ phần AI (agent, RAG, eval, mô hình kiểm duyệt), giao tiếp với Node qua HTTP và hàng đợi Redis. Ghi mọi quyết định và đánh đổi (chọn vector store, chọn model embedding, kết quả so sánh) vào `docs/DECISIONS.md`.
+Ghi chú:
 
-Dữ liệu seed (`backend/scripts/seed.js`) được viết sẵn các chi tiết có thể hỏi lại (link staging, giờ họp, ai phụ trách phần nào, ngân sách chuyến đi) để dùng làm bộ câu hỏi eval cho RAG; khi thêm dữ liệu seed, giữ tính chất này.
+- Giai đoạn 3 **chưa dùng RAG**: file đủ nhỏ thì đưa cả nội dung đã trích vào prompt; file quá dài thì báo giới hạn cho người dùng. RAG chỉ vào ở Giai đoạn 4.
+- **Đã bỏ khỏi lộ trình, chỉ thêm lại khi chủ repo yêu cầu:** nhắc việc (`create_reminder`), bình chọn (`create_poll`), fine-tune mô hình kiểm duyệt (PhoBERT), BullMQ + Redis, hybrid search + rerank, service Python (FastAPI), tìm kiếm web.
+- **Chưa quyết, hỏi chủ repo khi làm tới:** ai được xem kho tài liệu chung; lưu file tài liệu ở đâu; dùng model cụ thể nào.
+- Ghi mọi quyết định và đánh đổi vào `docs/DECISIONS.md`.
+
+Dữ liệu seed (`backend/scripts/seed.js`) được viết sẵn các chi tiết có thể hỏi lại (link staging, giờ họp, ai phụ trách phần nào, ngân sách chuyến đi) để dùng làm bộ câu hỏi eval cho RAG; khi thêm dữ liệu seed, giữ tính chất này. Seed hiện theo bối cảnh nhóm sinh viên làm đồ án; khi thêm dữ liệu mới, viết theo bối cảnh văn phòng.

@@ -60,4 +60,8 @@ frontend (React)  ──REST + WebSocket──▶  backend (Express + Socket.IO)
 
 ## Lộ trình
 
-Đang phát triển thêm trợ lý AI trong chat (streaming, tool calling) và hỏi đáp trên lịch sử chat (RAG có trích dẫn, lọc theo quyền), kèm bộ đánh giá.
+Komi đang được phát triển thành app chat cho nhóm văn phòng, có trợ lý AI:
+
+1. **Komi AI cơ bản** (đang làm): nhắn riêng với bot và gọi `@komi` trong nhóm, trả lời streaming, tóm tắt tin chưa đọc.
+2. **Tài liệu trong chat:** gửi file PDF/Word và hỏi đáp trên file, có trích dẫn.
+3. **Kho tài liệu chung:** hỏi đáp trên tài liệu chung và lịch sử chat (RAG, lọc theo quyền), kèm bộ đánh giá.
