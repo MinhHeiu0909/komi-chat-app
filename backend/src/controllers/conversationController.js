@@ -3,6 +3,7 @@ import Message from "../models/Message.js";
 import { io, announceConversation } from "../socket/index.js";
 import { isValidObjectId } from "../middlewares/conversationMiddleware.js";
 import { findOrCreateDirectConversation } from "../utils/directConversation.js";
+import { ensureKomiConversation } from "../ai/komiBot.js";
 import {
   CONVERSATION_POPULATE,
   formatConversation,
@@ -77,6 +78,12 @@ export const createConversation = async (req, res) => {
 
 export const getConversations = async (req, res) => {
   try {
+    // mỗi user tự có sẵn cuộc chat riêng với Komi AI (khi AI đang bật);
+    // lỗi ở đây không được làm hỏng việc tải danh sách chat
+    await ensureKomiConversation(req.user._id).catch((error) =>
+      console.error("Lỗi khi tạo cuộc chat với Komi AI", error),
+    );
+
     const conversations = await Conversation.find({
       "participants.userId": req.user._id,
     })

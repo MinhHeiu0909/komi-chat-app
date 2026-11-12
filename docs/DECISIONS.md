@@ -41,6 +41,13 @@ Mỗi quyết định ghi: ngày, chọn gì, vì sao, khi nào nên xem lại.
 
 Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullMQ + Redis, hybrid search + rerank, service FastAPI, tìm kiếm web. Chỉ thêm lại khi dùng thật thấy cần.
 
+## 2026-11-12 — Komi AI là một user hệ thống
+
+- **Chọn:** bot là user thật trong DB (`isBot: true`), tin của bot là tin nhắn thường. Mỗi user tự có cuộc chat riêng với bot (khi AI bật); `@komi` trong nhóm thì bot tự vào nhóm rồi trả lời.
+- **Vì sao:** dùng lại toàn bộ luồng tin nhắn, chưa đọc, socket, giao diện sẵn có; frontend lấy tên/avatar người gửi từ danh sách thành viên nên bot phải là thành viên.
+- **Đánh đổi:** bot ở lại nhóm sau lần gọi đầu, chưa có cách mời bot ra. Bước này trả lời cả câu; streaming là việc kế tiếp.
+- **Xem lại khi:** cần cho phép nhóm tắt Komi AI.
+
 ## Chưa quyết
 
 - Ai được xem kho tài liệu chung (mọi người trong app, hay theo nhóm)?

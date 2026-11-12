@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { io, type Socket } from "socket.io-client";
 import { useAuthStore } from "./useAuthStore";
 import type { SocketState } from "@/types/store";
+import type { Participant } from "@/types/chat";
 import { useChatStore } from "./useChatStore";
 import { refreshAccessToken } from "@/lib/axios";
 
@@ -159,6 +160,15 @@ export const useSocketStore = create<SocketState>((set, get) => {
       socket.on("new-group", (conversation) => {
         useChatStore.getState().addConvo(conversation, { activate: false });
       });
+
+      // nhóm có thành viên mới (vd. Komi AI vào nhóm khi được gọi @komi):
+      // cập nhật để hiện được tên/avatar của người gửi mới
+      socket.on(
+        "conversation-participants",
+        ({ conversationId, participants }: { conversationId: string; participants: Participant[] }) => {
+          useChatStore.getState().updateConversation({ _id: conversationId, participants });
+        }
+      );
     },
     disconnectSocket: () => {
       const socket = get().socket;

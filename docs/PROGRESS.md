@@ -33,6 +33,14 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
 - Gemini trả 400 kèm "API key not valid" khi sai key → cũng xếp vào `LLM_AUTH` (theo mô tả lỗi phổ biến, chưa thử với key thật).
 - Base URL OpenAI-compatible của Gemini: `https://generativelanguage.googleapis.com/v1beta/openai/` (đã đối chiếu tài liệu Gemini ngày 2026-11-12). Tên model chưa chọn.
 - `npm test` backend 55/55 (32 cũ + 23 mới trong `test/llm.test.js`, server giả trên localhost). Chưa gọi thử nhà cung cấp thật.
+- **Việc 2 — user Komi AI (2026-11-12):** `backend/src/ai/komiBot.js` + `ai/prompt.js`. User hệ thống `komi.ai` (`User.isBot`), tạo khi khởi động server hoặc lần đầu cần. Bot không đăng nhập, không tìm, không kết bạn được.
+  - Chat riêng: khi AI bật, `GET /api/conversations` tự tạo cuộc chat 1-1 với bot (qua `findOrCreateDirectConversation`); nhắn cho bot không cần kết bạn (`checkFriendship` cho qua khi người nhận là bot).
+  - Nhóm: tin có `@komi` (đứng riêng) → bot tự vào nhóm (update nguyên tử, phát `conversation-participants`), trả lời kèm trích dẫn câu hỏi. AI tắt thì bỏ qua `@komi`.
+  - Trả lời cả câu bằng `llm.chat()` ở nền (không chặn request gửi tin), có `typing` của bot; lỗi LLM → bot gửi câu báo lỗi thân thiện. Prompt: 20 tin gần nhất (tối đa 12.000 ký tự) của đúng conversation đó, tin nhóm có dạng "Tên: nội dung", system prompt nói rõ tin nhắn là dữ liệu.
+  - `createAndEmit` chuyển sang `utils/messageHelper.js` (`createMessageAndEmit`) để bot dùng chung.
+  - Frontend: chỉ thêm xử lý `conversation-participants` trong `useSocketStore`.
+  - `npm test` backend 68/68 (13 test mới trong `test/komiBot.test.js`); `npm run build` frontend qua. **Chưa thử trên trình duyệt** (Docker không chạy lúc làm).
+  - Chưa xử lý: gửi nhiều tin liên tiếp thì bot trả lời từng tin, song song; chưa có hạn mức.
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 

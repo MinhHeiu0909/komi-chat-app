@@ -1,9 +1,7 @@
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
-import {
-  emitNewMessage,
-  updateConversationAfterCreateMessage,
-} from "../utils/messageHelper.js";
+import { createMessageAndEmit } from "../utils/messageHelper.js";
+import { handleKomiTrigger } from "../ai/komiBot.js";
 import { findOrCreateDirectConversation } from "../utils/directConversation.js";
 import { populateAndFormat } from "../utils/conversationFormat.js";
 import {
@@ -75,21 +73,16 @@ const readReplyTo = async (body, conversationId) => {
 };
 
 const createAndEmit = async (conversation, senderId, { content, imgUrl }, clientId, replyTo) => {
-  const message = await Message.create({
-    conversationId: conversation._id,
-    senderId,
+  const { message } = await createMessageAndEmit(io, conversation, senderId, {
     content,
     imgUrl,
     clientId,
     replyTo,
   });
 
-  const updated = await updateConversationAfterCreateMessage(
-    conversation,
-    message,
-    senderId,
-  );
-  emitNewMessage(io, updated, message);
+  // Nhắn riêng với Komi AI hoặc @komi trong nhóm: bot trả lời ở nền,
+  // không chờ để người gửi nhận phản hồi HTTP ngay
+  handleKomiTrigger(conversation, message);
 
   return message;
 };

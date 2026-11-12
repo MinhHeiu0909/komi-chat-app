@@ -44,6 +44,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // user hệ thống (Komi AI): không đăng nhập được, không tìm/kết bạn được
+    isBot: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

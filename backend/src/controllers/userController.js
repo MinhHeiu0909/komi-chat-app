@@ -29,6 +29,7 @@ export const searchUserByUsername = async (req, res) => {
     // username luôn được lưu dạng chữ thường
     const user = await User.findOne({
       username: String(username).trim().toLowerCase(),
+      isBot: { $ne: true }, // Komi AI không kết bạn được
     }).select(
       "_id displayName username avatarUrl"
     );
