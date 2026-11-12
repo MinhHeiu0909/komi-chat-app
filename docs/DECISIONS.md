@@ -48,6 +48,13 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Đánh đổi:** bot ở lại nhóm sau lần gọi đầu, chưa có cách mời bot ra. Bước này trả lời cả câu; streaming là việc kế tiếp.
 - **Xem lại khi:** cần cho phép nhóm tắt Komi AI.
 
+## 2026-11-12 — Hạn mức hỏi Komi AI: 20 lượt/user/ngày
+
+- **Chọn:** mỗi lần bot gọi LLM tính một lượt cho người hỏi; mặc định 20 lượt/ngày, tính lại lúc 0h giờ Việt Nam; đổi bằng `AI_DAILY_LIMIT`. Đếm trong MongoDB (`AiUsage`), không dùng Redis.
+- **Vì sao:** free tier Gemini chỉ khoảng 1.500 request/ngày cho cả app; không để một người dùng hết. Đếm theo lượt (không theo token) cho đơn giản.
+- **Đánh đổi:** câu hỏi dài và ngắn tính như nhau; lỗi phía nhà cung cấp thì hoàn lượt, dừng giữa chừng thì không.
+- **Xem lại khi:** theo dõi chi phí theo token ở Giai đoạn 5.
+
 ## Chưa quyết
 
 - Ai được xem kho tài liệu chung (mọi người trong app, hay theo nhóm)?

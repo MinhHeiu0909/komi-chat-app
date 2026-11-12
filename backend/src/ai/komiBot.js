@@ -9,6 +9,7 @@ import { createMessageAndEmit } from "../utils/messageHelper.js";
 import { buildKomiPrompt } from "./prompt.js";
 import { llm, LLMError } from "./llm.js";
 import { registerStream, unregisterStream } from "./streams.js";
+import { quotaExceededText, refundQuota, takeQuota } from "./quota.js";
 
 /**
  * Komi AI là một user hệ thống (isBot: true):
@@ -114,12 +115,21 @@ export const STOPPED_NOTE = "_(Đã dừng)_";
  *   new-message (tin thật của bot, clientId = streamId)     → thay bong bóng tạm
  *   ai:done  { conversationId, streamId, messageId, stopped }
  * Người hỏi gửi ai:stop { streamId } để dừng (xem socket/index.js).
+ * Hết lượt hỏi trong ngày: chỉ báo riêng người hỏi bằng ai:error { conversationId, message }.
  */
 const respond = async (conversation, trigger, bot) => {
   const conversationId = conversation._id.toString();
   const isGroup = conversation.type === "group";
   const botId = bot._id.toString();
   const askerId = trigger.senderId.toString();
+
+  // Hạn mức mỗi user/ngày, chỉ tính khi thật sự gọi LLM (AI tắt thì bot chỉ báo đang tắt)
+  const quota = llm.isReady() ? await takeQuota(askerId) : null;
+  if (quota && !quota.ok) {
+    // báo riêng người hỏi (room cá nhân); không lưu tin, bot không vào nhóm
+    io.to(askerId).emit("ai:error", { conversationId, message: quotaExceededText(quota.limit) });
+    return;
+  }
 
   const current = isGroup ? await joinGroup(conversation, bot._id) : conversation;
 
@@ -153,6 +163,11 @@ const respond = async (conversation, trigger, bot) => {
     }
   } finally {
     unregisterStream(streamId);
+  }
+
+  // lỗi phía nhà cung cấp / server thì không tính lượt (dừng giữa chừng vẫn tính)
+  if (errorText && quota) {
+    await refundQuota(askerId, quota.day).catch((error) => console.error("Lỗi khi hoàn lượt hỏi AI", error));
   }
 
   // Lưu phần đã trả lời (kể cả khi bị dừng / lỗi giữa chừng). Dừng trước khi có chữ nào thì không lưu.

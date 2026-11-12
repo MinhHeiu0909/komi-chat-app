@@ -5,6 +5,7 @@ import type { SocketState } from "@/types/store";
 import type { AiStream, Participant } from "@/types/chat";
 import { useChatStore } from "./useChatStore";
 import { refreshAccessToken } from "@/lib/axios";
+import { toast } from "sonner";
 
 const baseURL = import.meta.env.VITE_SOCKET_URL;
 
@@ -132,6 +133,9 @@ export const useSocketStore = create<SocketState>((set, get) => {
         if (!stream) return; // mở trang khi bot đang trả lời dở: chờ tin thật
         set({ aiStreams: { ...get().aiStreams, [streamId]: { ...stream, content: stream.content + token } } });
       });
+
+      // Komi AI không trả lời được (vd. hết lượt hỏi hôm nay); chỉ người hỏi nhận
+      socket.on("ai:error", ({ message }: { message: string }) => toast.error(message));
 
       // xong / bị dừng / lỗi: tin thật (nếu có) đã tới qua new-message
       socket.on("ai:done", ({ streamId }: { streamId: string }) => removeAiStream(streamId));

@@ -56,7 +56,10 @@ const myKomiConversation = async (user) => {
 
 before(async () => {
   process.env.LLM_PROVIDER = "fake";
+  process.env.AI_DAILY_LIMIT = "1000"; // các test khác hỏi bot nhiều lần; test hạn mức tự đặt lại
   models = await startDatabase();
+  const { default: AiUsage } = await import("../src/models/AiUsage.js");
+  await AiUsage.init();
   ({ default: app } = await import("../src/app.js"));
   ({ server, io } = await import("../src/socket/index.js"));
   ({ llm, LLMError, LLM_ERROR } = await import("../src/ai/llm.js"));
@@ -81,10 +84,12 @@ before(async () => {
 afterEach(() => {
   llm.streamChat = originalStreamChat;
   process.env.LLM_PROVIDER = "fake";
+  process.env.AI_DAILY_LIMIT = "1000";
 });
 
 after(async () => {
   delete process.env.LLM_PROVIDER;
+  delete process.env.AI_DAILY_LIMIT;
   await new Promise((resolve) => io.close(() => resolve()));
   await stopDatabase();
 });
@@ -395,5 +400,109 @@ describe("streaming qua socket và nút dừng", () => {
     assert.equal(doneEvent.messageId, null);
     assert.equal(doneEvent.stopped, true);
     assert.equal((await botMessages(convo._id)).length, before);
+  });
+});
+
+describe("hạn mức lượt hỏi trong chat", () => {
+  let D, AiUsage, quotaExceededText;
+  const sockets = [];
+
+  before(async () => {
+    D = await createUser(models.User, "dung");
+    ({ default: AiUsage } = await import("../src/models/AiUsage.js"));
+    ({ quotaExceededText } = await import("../src/ai/quota.js"));
+    await models.Conversation.updateOne({ _id: group._id }, { $push: { participants: { userId: D._id } } });
+  });
+  afterEach(() => sockets.splice(0).forEach((s) => s.disconnect()));
+
+  const connect = async (user) => {
+    const socket = connectClient(baseUrl, { auth: { token: tokenFor(user) }, transports: ["websocket"] });
+    sockets.push(socket);
+    await new Promise((resolve) => socket.on("connect", resolve));
+    return socket;
+  };
+  const usedToday = async (user) => (await AiUsage.findOne({ userId: user._id }).lean())?.count ?? 0;
+
+  test("hết lượt: chỉ người hỏi nhận ai:error, bot không trả lời, không gọi LLM", async () => {
+    process.env.AI_DAILY_LIMIT = "1";
+    const convo = await myKomiConversation(D);
+    const socket = await connect(D);
+    const calls = spyChat();
+    const ask = (content) =>
+      request(app)
+        .post("/api/messages/direct")
+        .set(auth(D))
+        .send({ recipientId: bot._id.toString(), conversationId: convo._id, content })
+        .expect(201);
+
+    await ask("Lượt thứ nhất");
+    await waitFor(async () => (await botMessages(convo._id)).length === 1);
+
+    const starts = [];
+    socket.on("ai:start", (e) => starts.push(e));
+    const error = new Promise((resolve) => socket.once("ai:error", resolve));
+    await ask("Lượt thứ hai");
+
+    assert.deepEqual(await error, { conversationId: convo._id, message: quotaExceededText(1) });
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(calls.length, 1);
+    assert.equal(starts.length, 0);
+    assert.equal((await botMessages(convo._id)).length, 1);
+    assert.equal(await usedToday(D), 1);
+  });
+
+  test("lỗi từ nhà cung cấp thì được hoàn lượt; AI tắt thì không tính lượt", async () => {
+    await AiUsage.deleteMany({ userId: D._id });
+    const convo = await myKomiConversation(D);
+    const before = (await botMessages(convo._id)).length;
+    const ask = (content) =>
+      request(app)
+        .post("/api/messages/direct")
+        .set(auth(D))
+        .send({ recipientId: bot._id.toString(), conversationId: convo._id, content })
+        .expect(201);
+
+    spyChat(async function* () {
+      throw new LLMError(LLM_ERROR.RATE_LIMIT, { status: 429 });
+    });
+    await ask("Lỗi nhà cung cấp");
+    await waitFor(async () => (await botMessages(convo._id)).length === before + 1);
+    await waitFor(async () => (await usedToday(D)) === 0);
+
+    delete process.env.LLM_PROVIDER;
+    await ask("AI đang tắt");
+    await waitFor(async () => (await botMessages(convo._id)).length === before + 2);
+    assert.equal(await usedToday(D), 0);
+  });
+
+  test("hết lượt mà gọi @komi trong nhóm: bot không vào nhóm, cả nhóm không thấy gì", async () => {
+    process.env.AI_DAILY_LIMIT = "1";
+    await AiUsage.deleteMany({ userId: D._id });
+    await AiUsage.create({ userId: D._id, day: (await import("../src/ai/quota.js")).vnDay(), count: 1 });
+
+    // nhóm mới chưa có bot, D và B là thành viên
+    const fresh = await models.Conversation.create({
+      type: "group",
+      participants: [{ userId: D._id }, { userId: B._id }],
+      group: { name: "Nhóm mới", createdBy: D._id },
+      lastMessageAt: new Date(),
+    });
+    const socketD = await connect(D);
+    const socketB = await connect(B);
+    const seenByB = [];
+    for (const name of ["ai:error", "ai:start", "conversation-participants"]) socketB.on(name, () => seenByB.push(name));
+    const error = new Promise((resolve) => socketD.once("ai:error", resolve));
+
+    await request(app)
+      .post("/api/messages/group")
+      .set(auth(D))
+      .send({ conversationId: fresh._id, content: "@komi giúp với" })
+      .expect(201);
+
+    assert.equal((await error).conversationId, fresh._id.toString());
+    await new Promise((r) => setTimeout(r, 100));
+    assert.deepEqual(seenByB, []);
+    const after = await models.Conversation.findById(fresh._id);
+    assert.ok(!after.participants.some((p) => p.userId.equals(bot._id)));
   });
 });

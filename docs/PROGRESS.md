@@ -46,6 +46,11 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Frontend: `aiStreams` trong `useSocketStore`, `components/chat/AiStreamBubbles.tsx` (bong bóng chữ chạy dần, nút "Dừng" chỉ người hỏi thấy); bong bóng biến mất khi tin thật tới hoặc `ai:done`/mất kết nối.
   - `npm test` backend 72/72 (4 test mới về streaming/dừng); `npm run build` frontend qua.
   - **Đã thử trên trình duyệt** (MongoDB tạm trong bộ nhớ + `LLM_PROVIDER=fake`, vì Docker không chạy): chat riêng với Komi AI thấy chữ chạy dần, nút "Dừng" hiện rồi bong bóng được thay bằng tin thật, không trùng; `@komi` trong nhóm thì bot vào nhóm (4 → 5 thành viên) và trả lời kèm trích dẫn. Chưa bấm thử nút "Dừng" trên trình duyệt (provider giả trả lời quá nhanh); dừng đã có test backend.
+- **Việc 4 — hạn mức mỗi user/ngày (2026-11-12):** chủ repo chọn 20 lượt/ngày, tính lại lúc 0h giờ Việt Nam; đổi bằng `AI_DAILY_LIMIT` (thêm vào `.env.example` và `docker-compose.yml`).
+  - `backend/src/models/AiUsage.js` (`userId`, `day` "YYYY-MM-DD" giờ VN, `count`; unique `(userId, day)`; tự xoá sau 7 ngày) + `backend/src/ai/quota.js` (`takeQuota` nguyên tử: chỉ `$inc` khi `count < limit`, hết lượt thì upsert vướng unique index; `refundQuota`).
+  - Mỗi lần bot gọi LLM tính một lượt cho người hỏi (dừng giữa chừng vẫn tính); lỗi phía nhà cung cấp/server thì hoàn lượt; AI tắt thì không tính.
+  - Hết lượt: chỉ người hỏi nhận `ai:error { conversationId, message }` (frontend hiện toast); không gọi LLM, không lưu tin, bot không vào nhóm.
+  - `npm test` backend 80/80 (5 test trong `test/quota.test.js`, 3 test tích hợp trong `test/komiBot.test.js`); `npm run build` frontend qua. Chưa thử toast trên trình duyệt.
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 
