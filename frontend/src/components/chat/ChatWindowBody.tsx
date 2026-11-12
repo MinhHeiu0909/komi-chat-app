@@ -2,6 +2,7 @@ import { useChatStore } from "@/stores/useChatStore";
 import ChatWelcomeScreen from "./ChatWelcomeScreen";
 import { useLayoutEffect, useRef } from "react";
 import MessageItem from "./MessageItem";
+import AiStreamBubbles from "./AiStreamBubbles";
 import InfiniteScroll from "react-infinite-scroll-component";
 
 const ChatWindowBody = () => {
@@ -96,6 +97,8 @@ const ChatWindowBody = () => {
         className="flex flex-col-reverse overflow-y-auto overflow-x-hidden beautiful-scrollbar"
       >
         <div ref={messagesEndRef}></div>
+        {/* khung cuộn đảo ngược (column-reverse): đặt trước danh sách = nằm dưới tin mới nhất */}
+        <AiStreamBubbles convo={selectedConvo} />
         <InfiniteScroll
           dataLength={messages.length}
           next={fetchMoreMessages}

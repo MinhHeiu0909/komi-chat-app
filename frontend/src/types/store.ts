@@ -1,5 +1,5 @@
 import type { Socket } from "socket.io-client";
-import type { Conversation, Message, Reaction } from "./chat";
+import type { AiStream, Conversation, Message, Reaction } from "./chat";
 import type { Friend, FriendRequest, User } from "./user";
 
 export interface AuthState {
@@ -90,6 +90,9 @@ export interface SocketState {
   connectSocket: () => void;
   disconnectSocket: () => void;
   emitTyping: (conversationId: string, isTyping: boolean) => void;
+  // streamId -> câu trả lời Komi AI đang chạy
+  aiStreams: Record<string, AiStream>;
+  stopAiStream: (streamId: string) => void;
 }
 
 export interface FriendState {

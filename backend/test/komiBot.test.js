@@ -12,7 +12,7 @@ import { startDatabase, stopDatabase, auth, tokenFor, createUser } from "./helpe
 let app, server, io, models;
 let llm, LLMError, LLM_ERROR, FAKE_REPLY, KOMI_USERNAME, KOMI_MENTION, AI_OFF_TEXT, getKomiBot;
 let A, B, C, bot, group, baseUrl;
-let originalChat;
+let originalStreamChat;
 
 // chờ tới khi fn() trả giá trị truthy (bot trả lời ở nền, không chờ trong request)
 const waitFor = async (fn, timeoutMs = 3000) => {
@@ -28,15 +28,24 @@ const waitFor = async (fn, timeoutMs = 3000) => {
 const botMessages = (conversationId) =>
   models.Message.find({ conversationId, senderId: bot._id }).sort({ createdAt: 1 }).lean();
 
-// thay llm.chat để xem prompt gửi đi / giả lỗi
+// thay llm.streamChat để xem prompt gửi đi / giả lỗi / giả câu trả lời bị treo
 const spyChat = (impl) => {
   const calls = [];
-  llm.chat = async (args) => {
+  llm.streamChat = async function* (args) {
     calls.push(args);
-    return impl ? impl(args) : "Trả lời giả";
+    if (impl) yield* impl(args);
+    else yield "Trả lời giả";
   };
   return calls;
 };
+
+// chờ tới khi bị dừng (signal abort) thì ném AbortError, giống provider thật
+// (signal đã huỷ từ trước thì ném ngay: sự kiện abort không phát lại lần nữa)
+const untilAborted = (signal) =>
+  new Promise((_, reject) => {
+    if (signal.aborted) return reject(signal.reason);
+    signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+  });
 
 const myKomiConversation = async (user) => {
   const res = await request(app).get("/api/conversations").set(auth(user)).expect(200);
@@ -53,7 +62,7 @@ before(async () => {
   ({ llm, LLMError, LLM_ERROR } = await import("../src/ai/llm.js"));
   ({ FAKE_REPLY } = await import("../src/ai/providers/fake.js"));
   ({ KOMI_USERNAME, KOMI_MENTION, AI_OFF_TEXT, getKomiBot } = await import("../src/ai/komiBot.js"));
-  originalChat = llm.chat;
+  originalStreamChat = llm.streamChat;
 
   [A, B, C] = await Promise.all(["an", "binh", "chi"].map((n) => createUser(models.User, n)));
   bot = await getKomiBot();
@@ -70,7 +79,7 @@ before(async () => {
 });
 
 afterEach(() => {
-  llm.chat = originalChat;
+  llm.streamChat = originalStreamChat;
   process.env.LLM_PROVIDER = "fake";
 });
 
@@ -167,7 +176,7 @@ describe("chat riêng với Komi AI", () => {
 
   test("lỗi từ nhà cung cấp → bot báo lỗi thân thiện", async () => {
     const convo = await myKomiConversation(B);
-    spyChat(() => {
+    spyChat(async function* () {
       throw new LLMError(LLM_ERROR.RATE_LIMIT, { status: 429 });
     });
     await request(app)
@@ -263,5 +272,128 @@ describe("@komi trong nhóm", () => {
     await waitFor(async () => (await botMessages(group._id)).length >= 2);
     const g = await models.Conversation.findById(group._id);
     assert.equal(g.participants.filter((p) => p.userId.equals(bot._id)).length, 1);
+  });
+});
+
+describe("streaming qua socket và nút dừng", () => {
+  const sockets = [];
+  const connect = async (user, conversationId) => {
+    const socket = connectClient(baseUrl, { auth: { token: tokenFor(user) }, transports: ["websocket"] });
+    sockets.push(socket);
+    await new Promise((resolve) => socket.on("connect", resolve));
+    if (conversationId) assert.deepEqual(await socket.emitWithAck("join-conversation", conversationId), { ok: true });
+    return socket;
+  };
+  afterEach(() => sockets.splice(0).forEach((s) => s.disconnect()));
+
+  const askBot = (user, convo, content) =>
+    request(app)
+      .post("/api/messages/direct")
+      .set(auth(user))
+      .send({ recipientId: bot._id.toString(), conversationId: convo._id, content })
+      .expect(201);
+
+  const nextEvent = (socket, name) => new Promise((resolve) => socket.once(name, resolve));
+
+  test("ai:start → ai:token → new-message → ai:done, tin thật mang clientId = streamId", async () => {
+    const convo = await myKomiConversation(A);
+    const socket = await connect(A, convo._id);
+
+    const order = [];
+    const tokens = [];
+    let start;
+    socket.on("ai:start", (e) => {
+      order.push("start");
+      start = e;
+    });
+    socket.on("ai:token", (e) => {
+      if (order.at(-1) !== "token") order.push("token");
+      tokens.push(e.token);
+    });
+    socket.on("new-message", (e) => {
+      if (e.message.senderId === bot._id.toString()) order.push("new-message");
+    });
+    const done = nextEvent(socket, "ai:done").then((e) => (order.push("done"), e));
+
+    await askBot(A, convo, "Kể chuyện đi");
+    const doneEvent = await done;
+
+    assert.deepEqual(order, ["start", "token", "new-message", "done"]);
+    assert.ok(tokens.length > 1);
+    assert.equal(tokens.join(""), FAKE_REPLY);
+    assert.equal(start.askerId, A._id.toString());
+    assert.equal(start.botId, bot._id.toString());
+    assert.equal(doneEvent.streamId, start.streamId);
+    assert.equal(doneEvent.stopped, false);
+
+    const saved = await models.Message.findById(doneEvent.messageId).lean();
+    assert.equal(saved.content, FAKE_REPLY);
+    assert.equal(saved.clientId, start.streamId);
+  });
+
+  test("người hỏi bấm dừng giữa chừng: lưu phần đã trả lời, đánh dấu đã dừng", async () => {
+    const convo = await myKomiConversation(A);
+    const socket = await connect(A, convo._id);
+    const calls = spyChat(async function* ({ signal }) {
+      yield "Một phần";
+      await untilAborted(signal);
+    });
+
+    const token = nextEvent(socket, "ai:token");
+    const done = nextEvent(socket, "ai:done");
+    await askBot(A, convo, "Viết dài vào");
+
+    const { streamId } = await token;
+    assert.deepEqual(await socket.emitWithAck("ai:stop", { streamId }), { ok: true });
+
+    const doneEvent = await done;
+    assert.equal(doneEvent.stopped, true);
+    const saved = await models.Message.findById(doneEvent.messageId).lean();
+    assert.equal(saved.content, "Một phần\n\n_(Đã dừng)_");
+    assert.ok(calls[0].signal.aborted);
+  });
+
+  test("người khác không dừng được câu trả lời của mình; stream không tồn tại → ok: false", async () => {
+    const convo = await myKomiConversation(A);
+    const socketA = await connect(A, convo._id);
+    const socketB = await connect(B);
+    spyChat(async function* ({ signal }) {
+      yield "Đang viết";
+      await untilAborted(signal);
+    });
+
+    const token = nextEvent(socketA, "ai:token");
+    const done = nextEvent(socketA, "ai:done");
+    await askBot(A, convo, "Câu hỏi của An");
+    const { streamId } = await token;
+
+    assert.deepEqual(await socketB.emitWithAck("ai:stop", { streamId }), { ok: false });
+    assert.deepEqual(await socketA.emitWithAck("ai:stop", { streamId: "khong-co" }), { ok: false });
+    assert.deepEqual(await socketA.emitWithAck("ai:stop", null), { ok: false });
+
+    // vẫn đang chạy cho tới khi chính A dừng
+    assert.deepEqual(await socketA.emitWithAck("ai:stop", { streamId }), { ok: true });
+    assert.equal((await done).stopped, true);
+  });
+
+  test("dừng trước khi có chữ nào: không lưu tin, ai:done có messageId null", async () => {
+    const convo = await myKomiConversation(A);
+    const socket = await connect(A, convo._id);
+    spyChat(async function* ({ signal }) {
+      await untilAborted(signal);
+    });
+
+    const before = (await botMessages(convo._id)).length;
+    const start = nextEvent(socket, "ai:start");
+    const done = nextEvent(socket, "ai:done");
+    await askBot(A, convo, "Thôi khỏi");
+
+    const { streamId } = await start;
+    assert.deepEqual(await socket.emitWithAck("ai:stop", { streamId }), { ok: true });
+
+    const doneEvent = await done;
+    assert.equal(doneEvent.messageId, null);
+    assert.equal(doneEvent.stopped, true);
+    assert.equal((await botMessages(convo._id)).length, before);
   });
 });

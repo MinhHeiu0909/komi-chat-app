@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { io, type Socket } from "socket.io-client";
 import { useAuthStore } from "./useAuthStore";
 import type { SocketState } from "@/types/store";
-import type { Participant } from "@/types/chat";
+import type { AiStream, Participant } from "@/types/chat";
 import { useChatStore } from "./useChatStore";
 import { refreshAccessToken } from "@/lib/axios";
 
@@ -34,6 +34,13 @@ export const useSocketStore = create<SocketState>((set, get) => {
     set({ typingUsers: { ...get().typingUsers, [conversationId]: next } });
   };
 
+  const removeAiStream = (streamId: string) => {
+    if (!get().aiStreams[streamId]) return;
+    const next = { ...get().aiStreams };
+    delete next[streamId];
+    set({ aiStreams: next });
+  };
+
   const clearAllTyping = () => {
     typingTimers.forEach((timer) => clearTimeout(timer));
     typingTimers.clear();
@@ -44,6 +51,10 @@ export const useSocketStore = create<SocketState>((set, get) => {
     socket: null,
     onlineUsers: [],
     typingUsers: {},
+    aiStreams: {},
+    stopAiStream: (streamId) => {
+      get().socket?.emit("ai:stop", { streamId });
+    },
     emitTyping: (conversationId, isTyping) => {
       get().socket?.emit(isTyping ? "typing:start" : "typing:stop", conversationId);
     },
@@ -103,8 +114,27 @@ export const useSocketStore = create<SocketState>((set, get) => {
         setTyping(conversationId, userId, isTyping);
       });
 
-      // mất kết nối thì không còn biết ai đang gõ
-      socket.on("disconnect", clearAllTyping);
+      // mất kết nối thì không còn biết ai đang gõ / bot nào đang trả lời
+      // (tin trả lời đã lưu sẽ về khi tải lại danh sách chat lúc kết nối lại)
+      socket.on("disconnect", () => {
+        clearAllTyping();
+        set({ aiStreams: {} });
+      });
+
+      // Komi AI bắt đầu trả lời: hiện bong bóng "đang trả lời"
+      socket.on("ai:start", (stream: Omit<AiStream, "content">) => {
+        set({ aiStreams: { ...get().aiStreams, [stream.streamId]: { ...stream, content: "" } } });
+      });
+
+      // từng đoạn chữ của câu trả lời
+      socket.on("ai:token", ({ streamId, token }: { streamId: string; token: string }) => {
+        const stream = get().aiStreams[streamId];
+        if (!stream) return; // mở trang khi bot đang trả lời dở: chờ tin thật
+        set({ aiStreams: { ...get().aiStreams, [streamId]: { ...stream, content: stream.content + token } } });
+      });
+
+      // xong / bị dừng / lỗi: tin thật (nếu có) đã tới qua new-message
+      socket.on("ai:done", ({ streamId }: { streamId: string }) => removeAiStream(streamId));
 
       // ai đó thả / gỡ cảm xúc (kể cả tab khác của chính mình)
       socket.on("message-reaction", ({ conversationId, messageId, reactions }) => {
@@ -115,6 +145,8 @@ export const useSocketStore = create<SocketState>((set, get) => {
       socket.on("new-message", ({ message, conversation, unreadCounts }) => {
         // người gửi vừa gửi xong thì thôi hiện "đang nhập"
         setTyping(message.conversationId, message.senderId, false);
+        // tin thật của Komi AI mang clientId = streamId: thay bong bóng tạm
+        if (message.clientId) removeAiStream(message.clientId);
         useChatStore.getState().addMessage(message);
 
         const lastMessage = {

@@ -41,6 +41,11 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Frontend: chỉ thêm xử lý `conversation-participants` trong `useSocketStore`.
   - `npm test` backend 68/68 (13 test mới trong `test/komiBot.test.js`); `npm run build` frontend qua. **Chưa thử trên trình duyệt** (Docker không chạy lúc làm).
   - Chưa xử lý: gửi nhiều tin liên tiếp thì bot trả lời từng tin, song song; chưa có hạn mức.
+- **Việc 3 — streaming qua socket + nút dừng (2026-11-12):** bot trả lời bằng `llm.streamChat()`, phát cho room: `ai:start { streamId, botId, askerId }` → `ai:token` → `new-message` (tin thật, `clientId = streamId`) → `ai:done { messageId, stopped }`. Bỏ sự kiện `typing` của bot.
+  - Dừng: client gửi `ai:stop { streamId }` (ack `{ ok }`); chỉ người hỏi dừng được (`backend/src/ai/streams.js`, lưu trong bộ nhớ). Dừng giữa chừng thì lưu phần đã có kèm "_(Đã dừng)_"; dừng trước khi có chữ thì không lưu tin, `messageId: null`. Lỗi giữa chừng thì lưu phần đã có kèm câu báo lỗi.
+  - Frontend: `aiStreams` trong `useSocketStore`, `components/chat/AiStreamBubbles.tsx` (bong bóng chữ chạy dần, nút "Dừng" chỉ người hỏi thấy); bong bóng biến mất khi tin thật tới hoặc `ai:done`/mất kết nối.
+  - `npm test` backend 72/72 (4 test mới về streaming/dừng); `npm run build` frontend qua.
+  - **Đã thử trên trình duyệt** (MongoDB tạm trong bộ nhớ + `LLM_PROVIDER=fake`, vì Docker không chạy): chat riêng với Komi AI thấy chữ chạy dần, nút "Dừng" hiện rồi bong bóng được thay bằng tin thật, không trùng; `@komi` trong nhóm thì bot vào nhóm (4 → 5 thành viên) và trả lời kèm trích dẫn. Chưa bấm thử nút "Dừng" trên trình duyệt (provider giả trả lời quá nhanh); dừng đã có test backend.
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 

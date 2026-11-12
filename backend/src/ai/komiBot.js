@@ -8,6 +8,7 @@ import { populateAndFormat } from "../utils/conversationFormat.js";
 import { createMessageAndEmit } from "../utils/messageHelper.js";
 import { buildKomiPrompt } from "./prompt.js";
 import { llm, LLMError } from "./llm.js";
+import { registerStream, unregisterStream } from "./streams.js";
 
 /**
  * Komi AI là một user hệ thống (isBot: true):
@@ -104,35 +105,61 @@ const joinGroup = async (conversation, botId) => {
   return updated;
 };
 
-const emitTyping = (conversationId, botId, isTyping) =>
-  io.to(conversationId).emit("typing", { conversationId, userId: botId.toString(), isTyping });
+export const STOPPED_NOTE = "_(Đã dừng)_";
 
+/**
+ * Trả lời bằng streaming qua socket, phát cho cả room của conversation:
+ *   ai:start { conversationId, streamId, botId, askerId }  → frontend hiện bong bóng "đang trả lời"
+ *   ai:token { conversationId, streamId, token }            → từng đoạn chữ
+ *   new-message (tin thật của bot, clientId = streamId)     → thay bong bóng tạm
+ *   ai:done  { conversationId, streamId, messageId, stopped }
+ * Người hỏi gửi ai:stop { streamId } để dừng (xem socket/index.js).
+ */
 const respond = async (conversation, trigger, bot) => {
   const conversationId = conversation._id.toString();
   const isGroup = conversation.type === "group";
+  const botId = bot._id.toString();
+  const askerId = trigger.senderId.toString();
 
   const current = isGroup ? await joinGroup(conversation, bot._id) : conversation;
-  emitTyping(conversationId, bot._id, true);
 
-  let content;
+  const streamId = crypto.randomUUID();
+  const controller = new AbortController();
+  registerStream(streamId, { controller, askerId, conversationId });
+  io.to(conversationId).emit("ai:start", { conversationId, streamId, botId, askerId });
+
+  let text = "";
+  let stopped = false;
+  let errorText = null;
   try {
     if (!llm.isReady()) {
-      content = AI_OFF_TEXT;
+      text = AI_OFF_TEXT;
     } else {
       const messages = await buildKomiPrompt({ conversation: current, botId: bot._id });
-      content = (await llm.chat({ messages })).trim() || EMPTY_REPLY_TEXT;
+      for await (const token of llm.streamChat({ messages, signal: controller.signal })) {
+        text += token;
+        io.to(conversationId).emit("ai:token", { conversationId, streamId, token });
+      }
     }
   } catch (error) {
-    if (error instanceof LLMError) {
+    if (controller.signal.aborted && error?.name === "AbortError") {
+      stopped = true;
+    } else if (error instanceof LLMError) {
       console.error("Komi AI lỗi khi gọi LLM:", error.code, error.status ?? "", error.detail ?? "");
-      content = error.message; // câu báo lỗi thân thiện, không chứa chi tiết kỹ thuật
+      errorText = error.message; // câu báo lỗi thân thiện, không chứa chi tiết kỹ thuật
     } else {
       console.error("Komi AI lỗi:", error);
-      content = new LLMError().message;
+      errorText = new LLMError().message;
     }
   } finally {
-    emitTyping(conversationId, bot._id, false);
+    unregisterStream(streamId);
   }
+
+  // Lưu phần đã trả lời (kể cả khi bị dừng / lỗi giữa chừng). Dừng trước khi có chữ nào thì không lưu.
+  let content = text.trim();
+  if (stopped && content) content += `\n\n${STOPPED_NOTE}`;
+  if (errorText) content = content ? `${content}\n\n_${errorText}_` : errorText;
+  if (!content && !stopped) content = EMPTY_REPLY_TEXT;
 
   // Trong nhóm, trả lời kèm trích dẫn câu hỏi để biết bot đang trả lời ai
   const replyTo = isGroup
@@ -143,7 +170,20 @@ const respond = async (conversation, trigger, bot) => {
       }
     : undefined;
 
-  await createMessageAndEmit(io, current, bot._id, { content, replyTo });
+  let messageId = null;
+  try {
+    if (content) {
+      const { message } = await createMessageAndEmit(io, current, bot._id, {
+        content,
+        replyTo,
+        clientId: streamId, // để frontend thay bong bóng tạm bằng tin thật
+      });
+      messageId = message._id.toString();
+    }
+  } finally {
+    // luôn báo xong, kể cả khi lưu lỗi, để frontend không kẹt bong bóng "đang trả lời"
+    io.to(conversationId).emit("ai:done", { conversationId, streamId, messageId, stopped });
+  }
 };
 
 /**

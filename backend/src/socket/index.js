@@ -4,6 +4,7 @@ import express from "express";
 import Conversation from "../models/Conversation.js";
 import { socketAuthMiddleware } from "../middlewares/socketMiddleware.js";
 import { userIsMemberOf } from "../middlewares/conversationMiddleware.js";
+import { stopStream } from "../ai/streams.js";
 
 const app = express();
 
@@ -103,6 +104,12 @@ io.on("connection", async (socket) => {
 
   socket.on("typing:start", relayTyping(true));
   socket.on("typing:stop", relayTyping(false));
+
+  // Dừng câu trả lời Komi AI đang streaming; chỉ người đã hỏi mới dừng được
+  socket.on("ai:stop", (payload, ack) => {
+    const reply = typeof ack === "function" ? ack : () => {};
+    reply({ ok: stopStream(payload?.streamId, userId) });
+  });
 
   socket.on("disconnect", () => {
     if (removeOnlineSocket(userId, socket.id)) {
