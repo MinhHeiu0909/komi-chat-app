@@ -27,6 +27,13 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
 - Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore), rồi `docker compose up -d backend`. Chạy backend trực tiếp thì dùng `backend/.env`.
 - Khi thử trên trình duyệt: ảnh chụp màn hình của công cụ có thể nhỏ hơn viewport (800×600 so với 1024×768) — toạ độ bấm phải quy đổi.
 
+**Giai đoạn 2 — Komi AI cơ bản: đang làm** (nhánh `phase-2-komi-ai`)
+- **Việc 1 — lớp `LLMProvider` (2026-11-12):** `backend/src/ai/llm.js` (object `llm`: `isReady()`, `streamChat()`, `chat()`), `ai/errors.js` (`LLMError`, 3 mã: `LLM_RATE_LIMIT`, `LLM_AUTH`, `LLM_ERROR`), `ai/providers/fake.js`, `ai/providers/openaiCompatible.js` (fetch có sẵn, đọc SSE, timeout 30s không nhận byte, dừng qua `AbortSignal`, không tự gọi lại). `LLM_PROVIDER`: trống = tắt, `fake`, `openai-compatible`.
+- Người hỏi bấm dừng → ném lại lỗi abort gốc (`err.name === "AbortError"`), không phải `LLMError`.
+- Gemini trả 400 kèm "API key not valid" khi sai key → cũng xếp vào `LLM_AUTH` (theo mô tả lỗi phổ biến, chưa thử với key thật).
+- Base URL OpenAI-compatible của Gemini: `https://generativelanguage.googleapis.com/v1beta/openai/` (đã đối chiếu tài liệu Gemini ngày 2026-11-12). Tên model chưa chọn.
+- `npm test` backend 55/55 (32 cũ + 23 mới trong `test/llm.test.js`, server giả trên localhost). Chưa gọi thử nhà cung cấp thật.
+
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 
 Giữ lại để tham khảo. Lý do thay đổi: `docs/DECISIONS.md`.
