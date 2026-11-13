@@ -78,6 +78,7 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Vì sao:** dùng lại Cloudinary sẵn có, không thêm dịch vụ lưu trữ; giới hạn đủ cho hợp đồng/báo cáo thường gặp mà không vượt hạn mức token free.
 - **Đánh đổi:** file dài hơn giới hạn chưa hỏi được (chờ RAG ở Giai đoạn 4).
 - **Hỏi đáp (2026-11-13):** bot xét 3 file gửi gần nhất của cuộc trò chuyện (tổng ≤ 50.000 ký tự), kèm vào mọi câu hỏi trong cuộc trò chuyện đó; chưa chọn file theo câu hỏi.
+- **Chưa hỏi chéo cuộc trò chuyện (2026-11-13, chủ repo chọn):** Komi AI chỉ đọc file của chính cuộc trò chuyện nơi được hỏi; file nằm trong chat 1-1 với người khác thì phải tải lại vào chat với Komi. Không thêm nút "Hỏi Komi về file này". Hỏi trên mọi cuộc trò chuyện người hỏi là thành viên để dành cho Giai đoạn 4 (RAG, lọc theo quyền trong truy vấn).
 - **Xem lại khi:** làm kho tài liệu chung (Giai đoạn 4).
 
 ## Chưa quyết

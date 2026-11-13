@@ -80,14 +80,15 @@ cd frontend && npm run build
 
 - **Giai đoạn 0 (nền tảng) và Giai đoạn 1 (UX chat): đã xong**, đã merge vào `main` (PR #1, PR #2). Chi tiết từng việc và kết quả kiểm chứng: `docs/PROGRESS.md`.
 - **Giai đoạn 2 — Komi AI cơ bản: đã xong**, đã merge vào `main` (PR #3). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
-- **Giai đoạn 3 — Tài liệu trong chat: đang làm** trên nhánh `phase-3-chat-documents`. Đã xong: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`), trích chữ lúc tải lên (`utils/documentText.js`, PDF theo trang), hỏi đáp trên 3 file gần nhất của cuộc trò chuyện có ghi nguồn (đã thử với Gemini thật), tìm tin trong cuộc trò chuyện không phân biệt dấu (`GET /api/conversations/:id/search`). Đã đủ việc theo lộ trình; còn thử với Cloudinary thật và PDF tiếng Việt thật trước khi mở PR.
+- **Giai đoạn 3 — Tài liệu trong chat: đã xong** trên nhánh `phase-3-chat-documents`, chờ chủ repo push và mở PR. Có: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`, Cloudinary `raw`), trích chữ lúc tải lên (`utils/documentText.js`, PDF theo trang), hỏi đáp trên 3 file gần nhất của cuộc trò chuyện có ghi nguồn tới file/trang, trả lời đúng ngôn ngữ câu hỏi, tìm tin trong cuộc trò chuyện không phân biệt dấu (`GET /api/conversations/:id/search`). Đã thử với Cloudinary và Gemini thật, chủ repo đã thử trên giao diện. Chưa thử PDF tiếng Việt thật (chủ repo chọn để sau). Komi AI chỉ đọc file của cuộc trò chuyện nơi được hỏi; hỏi chéo để Giai đoạn 4.
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
-- `npm test` backend: 114/114 (2026-11-13).
+- `npm test` backend: 116/116 (2026-11-13).
 
 Ghi chú vận hành:
 
 - Tài khoản demo: `an.nguyen`, `binh`, `chi`, `dung`, `hoa` / `komi123`.
-- Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore). Chạy backend trực tiếp thì dùng `backend/.env`.
+- Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore). Chạy backend trực tiếp thì dùng `backend/.env`. Cần đủ 3 biến `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`; API key phải có quyền tải lên (thiếu thì 403 "missing permissions create"); phải bật Settings → Security → "PDF and ZIP files delivery" thì link PDF mới mở được (không bật thì 401).
+- File tài liệu mẫu để thử tay đặt trong `samples/` ở gốc repo (đã gitignore, không commit).
 - `frontend/.npmrc` đặt `legacy-peer-deps=true` vì `@emoji-mart/react` chỉ khai báo React ≤18. Không xoá file này.
 - CI chỉ chạy khi push lên `main` hoặc mở PR. Máy không có `gh`: chủ repo mở/merge PR qua giao diện GitHub.
 - Xong một việc: cập nhật ngắn gọn mục này, ghi chi tiết vào `docs/PROGRESS.md`.
