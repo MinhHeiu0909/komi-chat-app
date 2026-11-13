@@ -83,6 +83,13 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - `npm test` backend 104/104 (5 test mới trong `test/komiBot.test.js`).
   - **Đã thử với Gemini thật** (`gemini-3.5-flash-lite`, prompt dựng bằng `buildKomiPrompt` trên MongoDB trong bộ nhớ, PDF mẫu 3 trang): trả lời đúng ngân sách, người phụ trách, lịch đào tạo và ghi đúng số trang, 1,5 giây. Chưa thử trên giao diện với file tải lên Cloudinary thật.
   - Đánh đổi: mỗi câu hỏi trong cuộc trò chuyện có file đều kèm chữ của file (tốn token, có thể chậm hơn); chỉ xét 3 file gần nhất.
+- **Việc 4 — tìm tin nhắn theo từ khoá (2026-11-13):** tìm trong cuộc trò chuyện đang mở.
+  - `GET /api/conversations/:conversationId/search?q=&before=` (qua `requireConversationMember`): khớp nội dung tin và tên file đính kèm, không phân biệt dấu tiếng Việt và hoa/thường ("bao gia" ra "Báo giá", "do an" ra "ĐỒ ÁN"). `utils/messageSearch.js` dựng regex mỗi chữ gốc khớp mọi biến thể dấu, nên không đổi schema, tin cũ vẫn tìm được; ký tự đặc biệt được thoát. 2–100 ký tự, 30 kết quả/lần, mới nhất trước, `before` để xem thêm. Chưa tìm trong nội dung file.
+  - Frontend: nút kính lúp ở đầu khung chat (`MessageSearch.tsx`), tìm sau khi ngừng gõ 300ms; bấm kết quả thì nhảy tới tin. `lib/messageJump.ts` dùng chung cho cả bấm trích dẫn: tin cũ chưa tải thì tự tải thêm trang (tối đa 25 trang).
+  - **Sửa lỗi có sẵn ở `GET /messages`:** `nextCursor` từng là thời gian của tin dư (tin thứ limit+1) rồi bỏ tin đó, nên trang sau không bao giờ trả tin này: mỗi lần cuộn lên tải thêm mất 1 tin ở ranh giới trang (nhóm seed 30 tin chỉ hiện 29). Giờ cursor là tin cũ nhất được trả về; có test hồi quy (code cũ trả 34/35 tin).
+  - `npm test` backend 114/114 (10 test mới trong `test/messageSearch.test.js`); `npm run build` frontend qua, lint file mới sạch.
+  - **Đã thử trên trình duyệt** (MongoDB tạm + seed): gõ "ban staging" ra "Bản staging đã deploy…", gõ "link hop" ra "Link họp: meet.google.com/…"; bấm kết quả thì nhảy và cuộn tới đúng tin. Chưa thử được nhánh tự tải thêm trang trên trình duyệt (nhóm seed ngắn, khung chat đã tự tải hết 30 tin).
+- **Giai đoạn 3 đủ các việc trong lộ trình.** Còn: thử toàn bộ trên giao diện với Cloudinary thật và PDF tiếng Việt thật trước khi mở PR.
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 

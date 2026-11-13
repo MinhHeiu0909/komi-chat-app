@@ -94,6 +94,18 @@ export const chatService = {
     return res.data;
   },
 
+  // tìm tin theo từ khoá trong một cuộc trò chuyện (không phân biệt dấu); before để xem thêm
+  async searchMessages(
+    conversationId: string,
+    q: string,
+    before?: string | null
+  ): Promise<{ messages: Message[]; nextCursor: string | null }> {
+    const res = await api.get(`/conversations/${conversationId}/search`, {
+      params: { q, ...(before ? { before } : {}) },
+    });
+    return res.data;
+  },
+
   async markAsSeen(conversationId: string) {
     const res = await api.patch(`/conversations/${conversationId}/seen`);
     return res.data; 

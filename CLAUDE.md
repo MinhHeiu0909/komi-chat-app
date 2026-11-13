@@ -29,7 +29,7 @@ backend/    Express 5 + Socket.IO + Mongoose (JavaScript, ESM)
   src/socket/index.js   Socket.IO server, online users, announceConversation()
   src/controllers/      auth, user, friend, conversation, message
   src/middlewares/      authMiddleware, conversationMiddleware (kiểm tra thành viên), friendMiddleware, rateLimit, socketMiddleware, uploadMiddleware
-  src/utils/            messageHelper, directConversation, conversationFormat, messageImage, messageFile, documentText
+  src/utils/            messageHelper, directConversation, conversationFormat, messageImage, messageFile, documentText, messageSearch
   src/ai/               llm (LLMProvider), komiBot, prompt, quota, streams
   scripts/seed.js       dữ liệu demo tiếng Việt
   test/                 test tích hợp (node:test + supertest + mongodb-memory-server)
@@ -80,9 +80,9 @@ cd frontend && npm run build
 
 - **Giai đoạn 0 (nền tảng) và Giai đoạn 1 (UX chat): đã xong**, đã merge vào `main` (PR #1, PR #2). Chi tiết từng việc và kết quả kiểm chứng: `docs/PROGRESS.md`.
 - **Giai đoạn 2 — Komi AI cơ bản: đã xong**, đã merge vào `main` (PR #3). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
-- **Giai đoạn 3 — Tài liệu trong chat: đang làm** trên nhánh `phase-3-chat-documents`. Đã xong: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`), trích chữ lúc tải lên (`utils/documentText.js`, PDF theo trang), hỏi đáp trên 3 file gần nhất của cuộc trò chuyện có ghi nguồn (đã thử với Gemini thật). Còn: tìm tin nhắn theo từ khoá.
+- **Giai đoạn 3 — Tài liệu trong chat: đang làm** trên nhánh `phase-3-chat-documents`. Đã xong: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`), trích chữ lúc tải lên (`utils/documentText.js`, PDF theo trang), hỏi đáp trên 3 file gần nhất của cuộc trò chuyện có ghi nguồn (đã thử với Gemini thật), tìm tin trong cuộc trò chuyện không phân biệt dấu (`GET /api/conversations/:id/search`). Đã đủ việc theo lộ trình; còn thử với Cloudinary thật và PDF tiếng Việt thật trước khi mở PR.
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
-- `npm test` backend: 104/104 (2026-11-13).
+- `npm test` backend: 114/114 (2026-11-13).
 
 Ghi chú vận hành:
 
@@ -100,7 +100,7 @@ Nợ kỹ thuật đã biết:
 - Đổi mật khẩu chỉ xoá session (refresh token); access token của thiết bị khác vẫn dùng được tới khi hết hạn (30 phút), socket đang mở không bị ngắt.
 - `online-users` được phát cho mọi user đang kết nối, không chỉ bạn bè.
 - Chưa đổi được username/email (cần xác thực email).
-- Cursor phân trang chỉ theo `createdAt`; tin trùng mili-giây có thể bị bỏ sót.
+- Cursor phân trang chỉ theo `createdAt`; tin trùng mili-giây có thể bị bỏ sót. (Lỗi mất 1 tin ở mỗi ranh giới trang đã sửa ngày 2026-11-13.)
 
 ## Lộ trình
 
