@@ -1,6 +1,13 @@
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
 import { IMAGE_PREVIEW_TEXT } from "./messageImage.js";
+import { filePreviewText } from "./messageFile.js";
+
+// Chữ đại diện cho tin ở danh sách chat / trích dẫn: nội dung, hoặc "📷 Hình ảnh", hoặc "📎 tên file"
+export const messagePreviewText = (message) =>
+  message.content ||
+  (message.imgUrl ? IMAGE_PREVIEW_TEXT : "") ||
+  (message.file?.name ? filePreviewText(message.file.name) : "");
 
 /**
  * Cập nhật conversation sau khi có tin nhắn mới bằng MỘT lệnh update nguyên tử.
@@ -29,8 +36,8 @@ export const updateConversationAfterCreateMessage = async (
       lastMessageAt: message.createdAt,
       lastMessage: {
         _id: message._id.toString(),
-        // tin chỉ có ảnh: hiện "📷 Hình ảnh" ở danh sách chat
-        content: message.content || (message.imgUrl ? IMAGE_PREVIEW_TEXT : ""),
+        // tin chỉ có ảnh / file: hiện "📷 Hình ảnh" / "📎 tên file" ở danh sách chat
+        content: messagePreviewText(message),
         senderId,
         createdAt: message.createdAt,
       },
@@ -60,12 +67,13 @@ export const emitNewMessage = (io, conversation, message) => {
  * Dùng chung cho tin của người dùng và tin trả lời của Komi AI.
  */
 export const createMessageAndEmit = async (io, conversation, senderId, fields) => {
-  const { content, imgUrl, clientId, replyTo } = fields;
+  const { content, imgUrl, file, clientId, replyTo } = fields;
   const message = await Message.create({
     conversationId: conversation._id,
     senderId,
     content,
     imgUrl,
+    file,
     clientId,
     replyTo,
   });

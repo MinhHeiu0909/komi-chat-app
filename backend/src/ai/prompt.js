@@ -13,7 +13,10 @@ const SYSTEM_PROMPT = `Bạn là Komi AI, trợ lý trong ứng dụng chat Komi
 const GROUP_NOTE = `
 - Đây là nhóm chat: mỗi tin của người dùng có dạng "Tên: nội dung". Hãy trả lời tin gần nhất có nhắc @komi.`;
 
-const textOf = (message) => message.content || (message.imgUrl ? "[ảnh]" : "");
+const textOf = (message) =>
+  [message.content, message.imgUrl ? "[ảnh]" : "", message.file?.name ? `[file: ${message.file.name}]` : ""]
+    .filter(Boolean)
+    .join(" ");
 
 /**
  * Dựng messages (định dạng OpenAI) cho Komi AI từ lịch sử của MỘT conversation.
@@ -25,7 +28,7 @@ export const buildKomiPrompt = async ({ conversation, botId }) => {
 
   const recent = await Message.find(
     { conversationId: conversation._id },
-    { senderId: 1, content: 1, imgUrl: 1, createdAt: 1 },
+    { senderId: 1, content: 1, imgUrl: 1, "file.name": 1, createdAt: 1 },
   )
     .sort({ createdAt: -1 })
     .limit(HISTORY_LIMIT)
@@ -92,7 +95,7 @@ export const prepareSummary = async ({ conversation, count, user }) => {
   const userId = user._id.toString();
   const recent = await Message.find(
     { conversationId: conversation._id },
-    { senderId: 1, content: 1, imgUrl: 1, createdAt: 1 },
+    { senderId: 1, content: 1, imgUrl: 1, "file.name": 1, createdAt: 1 },
   )
     .sort({ createdAt: -1 })
     .limit(count)

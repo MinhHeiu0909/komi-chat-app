@@ -29,7 +29,8 @@ backend/    Express 5 + Socket.IO + Mongoose (JavaScript, ESM)
   src/socket/index.js   Socket.IO server, online users, announceConversation()
   src/controllers/      auth, user, friend, conversation, message
   src/middlewares/      authMiddleware, conversationMiddleware (kiểm tra thành viên), friendMiddleware, rateLimit, socketMiddleware, uploadMiddleware
-  src/utils/            messageHelper, directConversation, conversationFormat, messageImage
+  src/utils/            messageHelper, directConversation, conversationFormat, messageImage, messageFile
+  src/ai/               llm (LLMProvider), komiBot, prompt, quota, streams
   scripts/seed.js       dữ liệu demo tiếng Việt
   test/                 test tích hợp (node:test + supertest + mongodb-memory-server)
 frontend/   React 19 + Vite + TypeScript + Zustand + Tailwind 4 + shadcn/ui
@@ -78,9 +79,10 @@ cd frontend && npm run build
 ## Trạng thái hiện tại
 
 - **Giai đoạn 0 (nền tảng) và Giai đoạn 1 (UX chat): đã xong**, đã merge vào `main` (PR #1, PR #2). Chi tiết từng việc và kết quả kiểm chứng: `docs/PROGRESS.md`.
-- **Giai đoạn 2 — Komi AI cơ bản: đã xong** trên nhánh `phase-2-komi-ai`, chưa mở PR (chủ repo tự push và mở PR). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
+- **Giai đoạn 2 — Komi AI cơ bản: đã xong**, đã merge vào `main` (PR #3). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
+- **Giai đoạn 3 — Tài liệu trong chat: đang làm** trên nhánh `phase-3-chat-documents`. Đã xong: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`). Còn: trích chữ, hỏi đáp trên file có trích dẫn, tìm tin nhắn theo từ khoá.
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
-- `npm test` backend: 84/84 (2026-11-12).
+- `npm test` backend: 94/94 (2026-11-13).
 
 Ghi chú vận hành:
 

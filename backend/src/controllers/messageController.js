@@ -1,6 +1,8 @@
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
-import { createMessageAndEmit } from "../utils/messageHelper.js";
+import { createMessageAndEmit, messagePreviewText } from "../utils/messageHelper.js";
+import ChatFile from "../models/ChatFile.js";
+import { cleanFileName, detectDocumentKind, fileStorage } from "../utils/messageFile.js";
 import { handleKomiTrigger } from "../ai/komiBot.js";
 import { findOrCreateDirectConversation } from "../utils/directConversation.js";
 import { populateAndFormat } from "../utils/conversationFormat.js";
@@ -11,7 +13,6 @@ import {
 } from "../middlewares/conversationMiddleware.js";
 import { io, announceConversation } from "../socket/index.js";
 import {
-  IMAGE_PREVIEW_TEXT,
   imageStorage,
   isOwnMessageImageUrl,
   isSupportedImage,
@@ -19,20 +20,36 @@ import {
 
 export const MAX_MESSAGE_LENGTH = 4000;
 
-// Tin phải có chữ hoặc ảnh (hoặc cả hai). Ảnh phải do chính người gửi tải lên.
-const readContent = (body, senderId) => {
+const isGiven = (value) => value !== undefined && value !== null && value !== "";
+
+/**
+ * Tin phải có chữ, ảnh hoặc file (hoặc kết hợp). Ảnh và file phải do chính người gửi tải lên:
+ * file được tìm theo fileId + uploaderId, nên không gửi được file của người khác
+ * (không phân biệt "không tồn tại" và "của người khác").
+ */
+const readContent = async (body, senderId) => {
   const content = typeof body?.content === "string" ? body.content.trim() : "";
   const rawImg = body?.imgUrl;
-  const hasImg = rawImg !== undefined && rawImg !== null && rawImg !== "";
+  const hasImg = isGiven(rawImg);
 
   if (hasImg && !isOwnMessageImageUrl(rawImg, senderId)) {
     return { error: "Ảnh không hợp lệ" };
   }
-  if (!content && !hasImg) return { error: "Thiếu nội dung" };
+
+  let file;
+  if (isGiven(body?.fileId)) {
+    const found =
+      isValidObjectId(body.fileId) &&
+      (await ChatFile.findOne({ _id: body.fileId, uploaderId: senderId }).lean());
+    if (!found) return { error: "Tệp không hợp lệ" };
+    file = { fileId: found._id, url: found.url, name: found.name, size: found.size, kind: found.kind };
+  }
+
+  if (!content && !hasImg && !file) return { error: "Thiếu nội dung" };
   if (content.length > MAX_MESSAGE_LENGTH) {
     return { error: `Tin nhắn tối đa ${MAX_MESSAGE_LENGTH} ký tự` };
   }
-  return { content, imgUrl: hasImg ? rawImg : undefined };
+  return { content, imgUrl: hasImg ? rawImg : undefined, file };
 };
 
 const readClientId = (body) =>
@@ -58,11 +75,11 @@ const readReplyTo = async (body, conversationId) => {
 
   const original = await Message.findOne(
     { _id: replyToId, conversationId },
-    { senderId: 1, content: 1, imgUrl: 1 },
+    { senderId: 1, content: 1, imgUrl: 1, "file.name": 1 },
   ).lean();
   if (!original) return invalid;
 
-  const text = original.content || (original.imgUrl ? IMAGE_PREVIEW_TEXT : "");
+  const text = messagePreviewText(original);
   return {
     replyTo: {
       messageId: original._id,
@@ -72,10 +89,11 @@ const readReplyTo = async (body, conversationId) => {
   };
 };
 
-const createAndEmit = async (conversation, senderId, { content, imgUrl }, clientId, replyTo) => {
+const createAndEmit = async (conversation, senderId, { content, imgUrl, file }, clientId, replyTo) => {
   const { message } = await createMessageAndEmit(io, conversation, senderId, {
     content,
     imgUrl,
+    file,
     clientId,
     replyTo,
   });
@@ -92,7 +110,7 @@ export const sendDirectMessage = async (req, res) => {
     const { recipientId, conversationId } = req.body;
     const senderId = req.user._id;
 
-    const { error, ...body } = readContent(req.body, senderId);
+    const { error, ...body } = await readContent(req.body, senderId);
     if (error) return res.status(400).json({ message: error });
 
     if (!isValidObjectId(recipientId) || recipientId === senderId.toString()) {
@@ -158,7 +176,7 @@ export const sendGroupMessage = async (req, res) => {
       return res.status(400).json({ message: "Conversation không phải nhóm" });
     }
 
-    const { error, ...body } = readContent(req.body, senderId);
+    const { error, ...body } = await readContent(req.body, senderId);
     if (error) return res.status(400).json({ message: error });
 
     const reply = await readReplyTo(req.body, conversation._id);
@@ -201,6 +219,43 @@ export const uploadMessageImage = async (req, res) => {
   } catch (error) {
     console.error("Lỗi xảy ra khi tải ảnh tin nhắn", error);
     return res.status(500).json({ message: "Tải ảnh không thành công" });
+  }
+};
+
+/**
+ * Tải file tài liệu (PDF / Word .docx, tối đa 10MB) lên trước khi gửi tin;
+ * trả về file (có _id) để gửi kèm tin nhắn bằng fileId.
+ */
+export const uploadMessageFile = async (req, res) => {
+  try {
+    if (!fileStorage.isReady()) {
+      return res.status(503).json({ message: "Server chưa cấu hình nơi lưu file (Cloudinary)" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "Chưa chọn file" });
+    }
+    const kind = detectDocumentKind(req.file.buffer);
+    if (!kind) {
+      return res.status(400).json({ message: "Chỉ nhận file PDF hoặc Word (.docx)" });
+    }
+
+    const userId = req.user._id;
+    const result = await fileStorage.upload(req.file.buffer, userId.toString(), kind);
+    const file = await ChatFile.create({
+      uploaderId: userId,
+      url: result.secure_url,
+      publicId: result.public_id,
+      name: cleanFileName(req.file.originalname, kind),
+      size: req.file.size,
+      kind,
+    });
+
+    return res.status(201).json({
+      file: { _id: file._id, url: file.url, name: file.name, size: file.size, kind: file.kind },
+    });
+  } catch (error) {
+    console.error("Lỗi xảy ra khi tải file tin nhắn", error);
+    return res.status(500).json({ message: "Tải file không thành công" });
   }
 };
 

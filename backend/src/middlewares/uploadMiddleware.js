@@ -29,3 +29,13 @@ export const uploadImageFromBuffer = (buffer, options) => {
     uploadStream.end(buffer);
   });
 };
+
+// Tải file nguyên trạng (PDF, Word...) lên Cloudinary với resource_type "raw"
+export const uploadRawFromBuffer = (buffer, options) =>
+  new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { resource_type: "raw", ...options },
+      (error, result) => (error ? reject(error) : resolve(result)),
+    );
+    uploadStream.end(buffer);
+  });

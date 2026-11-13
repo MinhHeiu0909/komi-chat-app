@@ -62,6 +62,16 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
 - **Thử với Gemini thật (2026-11-13):** key free tier của chủ repo gọi được API (liệt kê 63 model). `gemini-3.8-flash` mất hơn 60 giây → chọn `gemini-3.5-flash-lite` (khoảng 17,5 giây tới chữ đầu tiên). Chủ repo chạy app với `npm run dev` + MongoDB qua `docker compose up -d mongo` và xác nhận Komi AI hoạt động. Chi tiết ở `docs/DECISIONS.md`.
 - **Giai đoạn 2 xong:** `npm test` backend 84/84, `npm run build` frontend qua. Còn chủ repo push nhánh và mở PR vào `main`.
 
+**Giai đoạn 3 — Tài liệu trong chat: đang làm** (nhánh `phase-3-chat-documents`, tách từ `main` sau PR #3)
+- Quyết định đã chốt (Cloudinary, PDF/.docx ≤ 10MB, tối đa ~50.000 ký tự đưa vào prompt, `pdfjs-dist` + `mammoth`): `docs/DECISIONS.md`.
+- **Việc 1 — gửi file PDF/Word trong chat (2026-11-13):**
+  - Model mới `ChatFile` (`uploaderId`, `url`, `publicId`, `name`, `size`, `kind`); `Message.file` là bản trích `{ fileId, url, name, size, kind }`. Không đổi dữ liệu cũ.
+  - `POST /api/messages/files` (multer 10MB, rate limit 30 lần/10 phút): nhận dạng theo nội dung file (`%PDF-`; zip có `word/document.xml`), không tin đuôi file; tải lên Cloudinary `resource_type: "raw"`, thư mục `komi_chat/files/<userId>`, public_id ngẫu nhiên; tên gốc (sửa lỗi font tiếng Việt của multer) lưu ở DB.
+  - Gửi tin kèm `fileId`: server tìm theo `fileId` + `uploaderId` nên không gửi được file của người khác. Danh sách chat / trích dẫn hiện "📎 tên file"; prompt của bot ghi `[file: tên]`.
+  - Frontend: nút đính kèm (kẹp giấy) nhận cả ảnh lẫn PDF/Word; tin đang gửi hiện thẻ file; thẻ file trong bong bóng mở link Cloudinary.
+  - `npm test` backend 94/94 (10 test mới trong `test/messageFile.test.js`, kho lưu giả); `npm run build` frontend qua.
+  - **Chưa thử trên trình duyệt / với Cloudinary thật** (`backend/.env` chưa có khoá Cloudinary). Cần kiểm tra: tài khoản Cloudinary free có thể chặn tải file PDF theo mặc định; nếu link file trả 401 thì bật "Allow delivery of PDF and ZIP files" trong Settings → Security của Cloudinary.
+
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 
 Giữ lại để tham khảo. Lý do thay đổi: `docs/DECISIONS.md`.

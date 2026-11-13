@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import type { ConversationResponse, Message, Reaction } from "@/types/chat";
+import type { ConversationResponse, Message, MessageFile, Reaction } from "@/types/chat";
 
 interface FetchMessageProps {
   messages: Message[];
@@ -28,7 +28,8 @@ export const chatService = {
     imgUrl?: string,
     conversationId?: string,
     clientId?: string,
-    replyToId?: string
+    replyToId?: string,
+    fileId?: string
   ): Promise<Message> {
     const res = await api.post("/messages/direct", {
       recipientId,
@@ -37,6 +38,7 @@ export const chatService = {
       conversationId,
       clientId,
       replyToId,
+      fileId,
     });
 
     return res.data.message;
@@ -47,7 +49,8 @@ export const chatService = {
     content: string = "",
     imgUrl?: string,
     clientId?: string,
-    replyToId?: string
+    replyToId?: string,
+    fileId?: string
   ): Promise<Message> {
     const res = await api.post("/messages/group", {
       conversationId,
@@ -55,6 +58,7 @@ export const chatService = {
       imgUrl,
       clientId,
       replyToId,
+      fileId,
     });
     return res.data.message;
   },
@@ -67,6 +71,16 @@ export const chatService = {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data.imgUrl;
+  },
+
+  // tải file PDF / Word lên trước, server trả về file (có _id) để gửi kèm tin bằng fileId
+  async uploadFile(file: File): Promise<Required<Omit<MessageFile, "fileId">> & { _id: string }> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await api.post("/messages/files", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data.file;
   },
 
   async toggleReaction(messageId: string, emoji: string): Promise<Reaction[]> {

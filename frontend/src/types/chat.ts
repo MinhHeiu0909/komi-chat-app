@@ -58,12 +58,22 @@ export interface Reaction {
   emoji: string;
 }
 
+// File tài liệu gửi kèm tin; fileId/url chỉ có khi server đã lưu (tin "đang gửi" chưa có)
+export interface MessageFile {
+  fileId?: string;
+  url?: string;
+  name: string;
+  size: number;
+  kind: "pdf" | "docx";
+}
+
 export interface Message {
   _id: string;
   conversationId: string;
   senderId: string;
   content: string | null;
   imgUrl?: string | null;
+  file?: MessageFile;
   replyTo?: ReplyTo;
   reactions?: Reaction[];
   updatedAt?: string | null;

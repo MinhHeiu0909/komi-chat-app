@@ -3,16 +3,19 @@ import type { Conversation } from "@/types/chat";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSocketStore } from "@/stores/useSocketStore";
 import { Button } from "../ui/button";
-import { ImagePlus, Reply, Send, X } from "lucide-react";
+import { FileText, Paperclip, Reply, Send, X } from "lucide-react";
 import { Textarea } from "../ui/textarea";
 import { useChatStore } from "@/stores/useChatStore";
 import { toast } from "sonner";
 import EmojiPicker from "./EmojiPicker";
+import { ACCEPTED_IMAGE_TYPES, validateImageFile } from "@/lib/messageImage";
 import {
-  ACCEPTED_IMAGE_TYPES,
-  IMAGE_PREVIEW_TEXT,
-  validateImageFile,
-} from "@/lib/messageImage";
+  DOCUMENT_ACCEPT,
+  formatFileSize,
+  isDocumentFile,
+  messagePreviewText,
+  validateDocumentFile,
+} from "@/lib/messageFile";
 
 // ô nhập cao tối đa ~6 dòng, quá thì cuộn bên trong
 const MAX_INPUT_HEIGHT = 160;
@@ -29,22 +32,24 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ảnh đã chọn, chờ gửi (kèm URL xem trước tạo từ máy)
-  const [attachment, setAttachment] = useState<{ file: File; url: string } | null>(null);
+  // ảnh hoặc file PDF/Word đã chọn, chờ gửi (ảnh kèm URL xem trước tạo từ máy)
+  const [attachment, setAttachment] = useState<{ file: File; url?: string } | null>(null);
 
   // thu hồi URL xem trước khi bỏ ảnh / gửi xong / rời trang
   useEffect(() => {
-    if (!attachment) return;
-    return () => URL.revokeObjectURL(attachment.url);
+    const url = attachment?.url;
+    if (!url) return;
+    return () => URL.revokeObjectURL(url);
   }, [attachment]);
 
-  const attachImage = (file: File) => {
-    const error = validateImageFile(file);
+  const attachFile = (file: File) => {
+    const isDocument = isDocumentFile(file);
+    const error = isDocument ? validateDocumentFile(file) : validateImageFile(file);
     if (error) {
-      toast.error(error);
+      toast.error(isDocument ? error : "Chỉ gửi được ảnh (JPG, PNG, GIF, WEBP ≤ 5MB) hoặc file PDF, Word (≤ 10MB)");
       return;
     }
-    setAttachment({ file, url: URL.createObjectURL(file) });
+    setAttachment({ file, url: isDocument ? undefined : URL.createObjectURL(file) });
     textareaRef.current?.focus();
   };
 
@@ -138,7 +143,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
     const file = Array.from(e.clipboardData.files).find((f) => f.type.startsWith("image/"));
     if (!file) return;
     e.preventDefault();
-    attachImage(file);
+    attachFile(file);
   };
 
   const replyName = replyingTo
@@ -156,7 +161,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
           <div className="min-w-0 flex-1">
             <span className="block font-semibold text-primary">Đang trả lời {replyName}</span>
             <span className="block truncate text-muted-foreground">
-              {replyingTo.content || (replyingTo.imgUrl ? IMAGE_PREVIEW_TEXT : "")}
+              {messagePreviewText(replyingTo)}
             </span>
           </div>
           <button
@@ -171,26 +176,35 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
         </div>
       )}
 
-      {/* ảnh đã chọn, chờ gửi */}
+      {/* ảnh / file đã chọn, chờ gửi */}
       {attachment && (
         <div className="mx-3 mt-2 flex items-center gap-2">
           <div className="relative">
-            <img
-              src={attachment.url}
-              alt="Ảnh sẽ gửi"
-              className="size-16 rounded-md border object-cover"
-            />
+            {attachment.url ? (
+              <img
+                src={attachment.url}
+                alt="Ảnh sẽ gửi"
+                className="size-16 rounded-md border object-cover"
+              />
+            ) : (
+              <div className="flex size-16 items-center justify-center rounded-md border bg-muted/40">
+                <FileText className="size-7 text-primary" aria-hidden="true" />
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setAttachment(null)}
-              aria-label="Bỏ ảnh"
-              title="Bỏ ảnh"
+              aria-label="Bỏ tệp đính kèm"
+              title="Bỏ tệp đính kèm"
               className="absolute -right-1.5 -top-1.5 rounded-full border bg-background p-0.5 text-muted-foreground shadow-sm hover:text-foreground"
             >
               <X className="size-3" />
             </button>
           </div>
-          <span className="truncate text-xs text-muted-foreground">{attachment.file.name}</span>
+          <span className="min-w-0 truncate text-xs text-muted-foreground">
+            {attachment.file.name}
+            {!attachment.url && ` · ${formatFileSize(attachment.file.size)}`}
+          </span>
         </div>
       )}
 
@@ -199,11 +213,11 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
       <input
         ref={fileInputRef}
         type="file"
-        accept={ACCEPTED_IMAGE_TYPES.join(",")}
+        accept={[...ACCEPTED_IMAGE_TYPES, DOCUMENT_ACCEPT].join(",")}
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) attachImage(file);
+          if (file) attachFile(file);
           e.target.value = ""; // chọn lại đúng file đó vẫn nhận
         }}
       />
@@ -211,11 +225,11 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
         variant="ghost"
         size="icon"
         onClick={() => fileInputRef.current?.click()}
-        aria-label="Gửi ảnh"
-        title="Gửi ảnh (hoặc dán bằng Ctrl+V)"
+        aria-label="Gửi ảnh hoặc file"
+        title="Gửi ảnh, file PDF hoặc Word (dán ảnh bằng Ctrl+V)"
         className="hover:bg-primary/10 transition-smooth"
       >
-        <ImagePlus className="size-4" />
+        <Paperclip className="size-4" />
       </Button>
 
       <div className="flex-1 relative">
