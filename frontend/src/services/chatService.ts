@@ -74,6 +74,12 @@ export const chatService = {
     return res.data.reactions;
   },
 
+  // Komi AI tóm tắt tin chưa đọc vào cuộc chat riêng với bot (trả về id cuộc chat đó)
+  async summarizeUnread(conversationId: string): Promise<{ conversationId: string; count: number }> {
+    const res = await api.post(`/conversations/${conversationId}/summary`);
+    return res.data;
+  },
+
   async markAsSeen(conversationId: string) {
     const res = await api.patch(`/conversations/${conversationId}/seen`);
     return res.data; 

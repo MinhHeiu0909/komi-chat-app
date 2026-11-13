@@ -92,7 +92,8 @@ export const signIn = async (req, res) => {
     // lấy hashedPassword trong db để so với password input
     const user = await User.findOne({ username });
 
-    if (!user) {
+    // user hệ thống (Komi AI) không bao giờ đăng nhập được
+    if (!user || user.isBot) {
       return res
         .status(401)
         .json({ message: "username hoặc password không chính xác" });

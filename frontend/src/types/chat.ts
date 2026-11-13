@@ -3,6 +3,7 @@ export interface Participant {
   displayName: string;
   avatarUrl?: string | null;
   joinedAt: string;
+  isBot?: boolean; // Komi AI
 }
 
 export interface SeenUser {
@@ -72,4 +73,13 @@ export interface Message {
   clientId?: string;
   // chỉ có ở tin nhắn chưa được server xác nhận
   status?: "sending" | "failed";
+}
+
+// Câu trả lời Komi AI đang streaming (chưa lưu thành tin nhắn)
+export interface AiStream {
+  streamId: string;
+  conversationId: string;
+  botId: string;
+  askerId: string; // chỉ người hỏi mới thấy nút "Dừng"
+  content: string;
 }

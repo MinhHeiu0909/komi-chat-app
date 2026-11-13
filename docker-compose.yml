@@ -28,6 +28,12 @@ services:
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      # Komi AI: điền vào .env ở thư mục gốc (xem backend/.env.example). Để trống LLM_PROVIDER là tắt AI.
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      AI_DAILY_LIMIT: ${AI_DAILY_LIMIT:-}
 
   frontend:
     build:

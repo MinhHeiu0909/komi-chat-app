@@ -1,5 +1,5 @@
 export const CONVERSATION_POPULATE = [
-  { path: "participants.userId", select: "displayName avatarUrl" },
+  { path: "participants.userId", select: "displayName avatarUrl isBot" },
   { path: "seenBy", select: "displayName avatarUrl" },
   { path: "lastMessage.senderId", select: "displayName avatarUrl" },
 ];
@@ -13,6 +13,7 @@ export const formatConversation = (conversation) => {
     _id: p.userId?._id,
     displayName: p.userId?.displayName,
     avatarUrl: p.userId?.avatarUrl ?? null,
+    isBot: Boolean(p.userId?.isBot),
     joinedAt: p.joinedAt,
   }));
 

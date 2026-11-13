@@ -1,4 +1,5 @@
 import Conversation from "../models/Conversation.js";
+import Message from "../models/Message.js";
 import { IMAGE_PREVIEW_TEXT } from "./messageImage.js";
 
 /**
@@ -52,4 +53,25 @@ export const emitNewMessage = (io, conversation, message) => {
     },
     unreadCounts: conversation.unreadCounts,
   });
+};
+
+/**
+ * Lưu tin nhắn, cập nhật conversation (nguyên tử) và phát "new-message" cho cả room.
+ * Dùng chung cho tin của người dùng và tin trả lời của Komi AI.
+ */
+export const createMessageAndEmit = async (io, conversation, senderId, fields) => {
+  const { content, imgUrl, clientId, replyTo } = fields;
+  const message = await Message.create({
+    conversationId: conversation._id,
+    senderId,
+    content,
+    imgUrl,
+    clientId,
+    replyTo,
+  });
+
+  const updated = await updateConversationAfterCreateMessage(conversation, message, senderId);
+  emitNewMessage(io, updated, message);
+
+  return { message, conversation: updated };
 };

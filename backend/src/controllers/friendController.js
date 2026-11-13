@@ -14,7 +14,8 @@ export const sendFriendRequest = async (req, res) => {
         .json({ message: "Không thể gửi lời mời kết bạn cho chính mình" });
     }
 
-    const userExists = await User.exists({ _id: to });
+    // Komi AI không kết bạn được: coi như không tồn tại
+    const userExists = await User.exists({ _id: to, isBot: { $ne: true } });
 
     if (!userExists) {
       return res.status(404).json({ message: "Người dùng không tồn tại" });

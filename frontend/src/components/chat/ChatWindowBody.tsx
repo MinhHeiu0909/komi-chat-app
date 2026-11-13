@@ -2,6 +2,7 @@ import { useChatStore } from "@/stores/useChatStore";
 import ChatWelcomeScreen from "./ChatWelcomeScreen";
 import { useLayoutEffect, useRef } from "react";
 import MessageItem from "./MessageItem";
+import AiStreamBubbles from "./AiStreamBubbles";
 import InfiniteScroll from "react-infinite-scroll-component";
 
 const ChatWindowBody = () => {
@@ -81,8 +82,12 @@ const ChatWindowBody = () => {
 
   if (!messages?.length) {
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground ">
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-4 text-muted-foreground">
         Chưa có tin nhắn nào trong cuộc trò chuyện này.
+        {/* cuộc chat với Komi AI còn trống mà bot đang viết (vd. bản tóm tắt đầu tiên) */}
+        <div className="w-full">
+          <AiStreamBubbles convo={selectedConvo} />
+        </div>
       </div>
     );
   }
@@ -96,6 +101,8 @@ const ChatWindowBody = () => {
         className="flex flex-col-reverse overflow-y-auto overflow-x-hidden beautiful-scrollbar"
       >
         <div ref={messagesEndRef}></div>
+        {/* khung cuộn đảo ngược (column-reverse): đặt trước danh sách = nằm dưới tin mới nhất */}
+        <AiStreamBubbles convo={selectedConvo} />
         <InfiniteScroll
           dataLength={messages.length}
           next={fetchMoreMessages}

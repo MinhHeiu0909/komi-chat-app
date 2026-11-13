@@ -7,6 +7,8 @@ import { v2 as cloudinary } from "cloudinary";
 import { connectDB } from "./libs/db.js";
 import "./app.js";
 import { server } from "./socket/index.js";
+import { getKomiBot } from "./ai/komiBot.js";
+import { llm } from "./ai/llm.js";
 
 const PORT = process.env.PORT || 5001;
 
@@ -25,7 +27,14 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  if (llm.isReady()) {
+    await getKomiBot().catch((error) => console.error("Không tạo được user Komi AI", error));
+    console.log(`Komi AI bật (LLM_PROVIDER=${process.env.LLM_PROVIDER})`);
+  } else {
+    console.log("Komi AI tắt (chưa cấu hình LLM_PROVIDER)");
+  }
+
   server.listen(PORT, () => {
     console.log(`server bắt đầu trên cổng ${PORT}`);
   });

@@ -7,6 +7,7 @@ import UserAvatar from "./UserAvatar";
 import StatusBadge from "./StatusBadge";
 import UnreadCountBadge from "./UnreadCountBadge";
 import { useSocketStore } from "@/stores/useSocketStore";
+import SummarizeButton from "./SummarizeButton";
 
 const DirectMessageCard = ({ convo }: { convo: Conversation }) => {
   const { user } = useAuthStore();
@@ -40,6 +41,9 @@ const DirectMessageCard = ({ convo }: { convo: Conversation }) => {
       isActive={activeConversationId === convo._id}
       onSelect={handleSelectConversation}
       unreadCount={unreadCount}
+      action={
+        unreadCount > 0 && !otherUser.isBot ? <SummarizeButton convoId={convo._id} /> : undefined
+      }
       leftSection={
         <>
           <UserAvatar

@@ -1,5 +1,6 @@
 import Friend from "../models/Friend.js";
 import { isValidObjectId } from "./conversationMiddleware.js";
+import { isKomiBotId } from "../ai/komiBot.js";
 
 const pair = (a, b) => (a < b ? [a, b] : [b, a]);
 
@@ -21,6 +22,9 @@ export const checkFriendship = async (req, res, next) => {
     }
 
     if (recipientId) {
+      // nhắn riêng với Komi AI không cần kết bạn
+      if (await isKomiBotId(recipientId)) return next();
+
       const [userA, userB] = pair(me, recipientId);
 
       const isFriend = await Friend.findOne({ userA, userB });
