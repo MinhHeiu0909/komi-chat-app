@@ -55,6 +55,12 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Đánh đổi:** câu hỏi dài và ngắn tính như nhau; lỗi phía nhà cung cấp thì hoàn lượt, dừng giữa chừng thì không.
 - **Xem lại khi:** theo dõi chi phí theo token ở Giai đoạn 5.
 
+## 2026-11-12 — Tóm tắt tin chưa đọc gửi vào chat riêng với Komi AI
+
+- **Chọn:** nút "Tóm tắt" ở danh sách chat; bản tóm tắt viết vào cuộc chat riêng của người dùng với bot, không đánh dấu đã đọc.
+- **Vì sao:** mở cuộc chat ra là bị đánh dấu đã đọc ngay nên nút phải ở ngoài; "tin chưa đọc" là của riêng từng người nên bản tóm tắt chỉ người đó thấy; dùng lại luồng streaming và nút dừng sẵn có.
+- **Đánh đổi:** lịch sử chat với bot lẫn các bản tóm tắt; tối đa 100 tin chưa đọc gần nhất.
+
 ## Chưa quyết
 
 - Ai được xem kho tài liệu chung (mọi người trong app, hay theo nhóm)?

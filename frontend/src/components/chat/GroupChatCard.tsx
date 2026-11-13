@@ -4,6 +4,7 @@ import type { Conversation } from "@/types/chat";
 import ChatCard from "./ChatCard";
 import UnreadCountBadge from "./UnreadCountBadge";
 import GroupChatAvatar from "./GroupChatAvatar";
+import SummarizeButton from "./SummarizeButton";
 
 const GroupChatCard = ({ convo }: { convo: Conversation }) => {
   const { user } = useAuthStore();
@@ -32,6 +33,7 @@ const GroupChatCard = ({ convo }: { convo: Conversation }) => {
       isActive={activeConversationId === convo._id}
       onSelect={handleSelectConversation}
       unreadCount={unreadCount}
+      action={unreadCount > 0 ? <SummarizeButton convoId={convo._id} /> : undefined}
       leftSection={
         <>
           {unreadCount > 0 && <UnreadCountBadge unreadCount={unreadCount} />}

@@ -78,9 +78,9 @@ cd frontend && npm run build
 ## Trạng thái hiện tại
 
 - **Giai đoạn 0 (nền tảng) và Giai đoạn 1 (UX chat): đã xong**, đã merge vào `main` (PR #1, PR #2). Chi tiết từng việc và kết quả kiểm chứng: `docs/PROGRESS.md`.
-- **Giai đoạn 2 — Komi AI cơ bản: đang làm** trên nhánh `phase-2-komi-ai` (tách từ `main` sau PR #2, đã có trên origin). Đã xong lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, và hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`); còn tóm tắt tin chưa đọc.
+- **Giai đoạn 2 — Komi AI cơ bản: đang làm** trên nhánh `phase-2-komi-ai` (tách từ `main` sau PR #2, đã có trên origin). Đã xong lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`) và nút tóm tắt tin chưa đọc. Đã đủ các việc của Giai đoạn 2; còn gọi thử nhà cung cấp thật (Gemini) trước khi mở PR.
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
-- `npm test` backend: 80/80 (2026-11-12).
+- `npm test` backend: 84/84 (2026-11-12).
 
 Ghi chú vận hành:
 

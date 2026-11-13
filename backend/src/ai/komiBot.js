@@ -6,7 +6,7 @@ import { io } from "../socket/index.js";
 import { findOrCreateDirectConversation } from "../utils/directConversation.js";
 import { populateAndFormat } from "../utils/conversationFormat.js";
 import { createMessageAndEmit } from "../utils/messageHelper.js";
-import { buildKomiPrompt } from "./prompt.js";
+import { buildKomiPrompt, prepareSummary } from "./prompt.js";
 import { llm, LLMError } from "./llm.js";
 import { registerStream, unregisterStream } from "./streams.js";
 import { quotaExceededText, refundQuota, takeQuota } from "./quota.js";
@@ -109,29 +109,25 @@ const joinGroup = async (conversation, botId) => {
 export const STOPPED_NOTE = "_(Đã dừng)_";
 
 /**
- * Trả lời bằng streaming qua socket, phát cho cả room của conversation:
+ * Bot viết một tin vào `conversation` bằng streaming qua socket, phát cho cả room:
  *   ai:start { conversationId, streamId, botId, askerId }  → frontend hiện bong bóng "đang trả lời"
  *   ai:token { conversationId, streamId, token }            → từng đoạn chữ
  *   new-message (tin thật của bot, clientId = streamId)     → thay bong bóng tạm
  *   ai:done  { conversationId, streamId, messageId, stopped }
  * Người hỏi gửi ai:stop { streamId } để dừng (xem socket/index.js).
- * Hết lượt hỏi trong ngày: chỉ báo riêng người hỏi bằng ai:error { conversationId, message }.
+ *
+ * @param {object} opts
+ * @param {object} opts.conversation   nơi bot viết câu trả lời
+ * @param {object} opts.bot
+ * @param {string} opts.askerId        người được dừng câu trả lời
+ * @param {object|null} opts.quota     lượt đã lấy bằng takeQuota (hoàn lại nếu lỗi)
+ * @param {() => Promise<object[]>} opts.buildMessages  dựng prompt (chỉ gọi khi AI bật)
+ * @param {string} [opts.prefix]       chữ cố định đứng đầu câu trả lời (vd. tiêu đề bản tóm tắt)
+ * @param {object} [opts.replyTo]
  */
-const respond = async (conversation, trigger, bot) => {
+const streamBotReply = async ({ conversation, bot, askerId, quota, buildMessages, prefix = "", replyTo }) => {
   const conversationId = conversation._id.toString();
-  const isGroup = conversation.type === "group";
   const botId = bot._id.toString();
-  const askerId = trigger.senderId.toString();
-
-  // Hạn mức mỗi user/ngày, chỉ tính khi thật sự gọi LLM (AI tắt thì bot chỉ báo đang tắt)
-  const quota = llm.isReady() ? await takeQuota(askerId) : null;
-  if (quota && !quota.ok) {
-    // báo riêng người hỏi (room cá nhân); không lưu tin, bot không vào nhóm
-    io.to(askerId).emit("ai:error", { conversationId, message: quotaExceededText(quota.limit) });
-    return;
-  }
-
-  const current = isGroup ? await joinGroup(conversation, bot._id) : conversation;
 
   const streamId = crypto.randomUUID();
   const controller = new AbortController();
@@ -145,7 +141,11 @@ const respond = async (conversation, trigger, bot) => {
     if (!llm.isReady()) {
       text = AI_OFF_TEXT;
     } else {
-      const messages = await buildKomiPrompt({ conversation: current, botId: bot._id });
+      if (prefix) {
+        text = prefix;
+        io.to(conversationId).emit("ai:token", { conversationId, streamId, token: prefix });
+      }
+      const messages = await buildMessages();
       for await (const token of llm.streamChat({ messages, signal: controller.signal })) {
         text += token;
         io.to(conversationId).emit("ai:token", { conversationId, streamId, token });
@@ -176,19 +176,10 @@ const respond = async (conversation, trigger, bot) => {
   if (errorText) content = content ? `${content}\n\n_${errorText}_` : errorText;
   if (!content && !stopped) content = EMPTY_REPLY_TEXT;
 
-  // Trong nhóm, trả lời kèm trích dẫn câu hỏi để biết bot đang trả lời ai
-  const replyTo = isGroup
-    ? {
-        messageId: trigger._id,
-        senderId: trigger.senderId,
-        content: (trigger.content ?? "").slice(0, REPLY_SNIPPET_LENGTH),
-      }
-    : undefined;
-
   let messageId = null;
   try {
     if (content) {
-      const { message } = await createMessageAndEmit(io, current, bot._id, {
+      const { message } = await createMessageAndEmit(io, conversation, bot._id, {
         content,
         replyTo,
         clientId: streamId, // để frontend thay bong bóng tạm bằng tin thật
@@ -199,6 +190,87 @@ const respond = async (conversation, trigger, bot) => {
     // luôn báo xong, kể cả khi lưu lỗi, để frontend không kẹt bong bóng "đang trả lời"
     io.to(conversationId).emit("ai:done", { conversationId, streamId, messageId, stopped });
   }
+};
+
+/**
+ * Trả lời tin nhắn trong chat riêng với bot / tin có @komi trong nhóm.
+ * Hết lượt hỏi trong ngày: chỉ báo riêng người hỏi bằng ai:error { conversationId, message }.
+ */
+const respond = async (conversation, trigger, bot) => {
+  const conversationId = conversation._id.toString();
+  const isGroup = conversation.type === "group";
+  const askerId = trigger.senderId.toString();
+
+  // Hạn mức mỗi user/ngày, chỉ tính khi thật sự gọi LLM (AI tắt thì bot chỉ báo đang tắt)
+  const quota = llm.isReady() ? await takeQuota(askerId) : null;
+  if (quota && !quota.ok) {
+    // báo riêng người hỏi (room cá nhân); không lưu tin, bot không vào nhóm
+    io.to(askerId).emit("ai:error", { conversationId, message: quotaExceededText(quota.limit) });
+    return;
+  }
+
+  const current = isGroup ? await joinGroup(conversation, bot._id) : conversation;
+
+  await streamBotReply({
+    conversation: current,
+    bot,
+    askerId,
+    quota,
+    buildMessages: () => buildKomiPrompt({ conversation: current, botId: bot._id }),
+    // Trong nhóm, trả lời kèm trích dẫn câu hỏi để biết bot đang trả lời ai
+    replyTo: isGroup
+      ? {
+          messageId: trigger._id,
+          senderId: trigger.senderId,
+          content: (trigger.content ?? "").slice(0, REPLY_SNIPPET_LENGTH),
+        }
+      : undefined,
+  });
+};
+
+// Tóm tắt tối đa chừng này tin chưa đọc gần nhất
+export const MAX_SUMMARY_MESSAGES = 100;
+
+const fail = (status, message) => ({ error: { status, message } });
+
+/**
+ * "Tôi đã bỏ lỡ gì": tóm tắt các tin chưa đọc của `conversation` cho `user`,
+ * viết vào cuộc chat riêng của user với Komi AI (chỉ user thấy). Không đánh dấu đã đọc.
+ * Người gọi phải đảm bảo user là thành viên của conversation (requireConversationMember).
+ *
+ * Trả { error: { status, message } } nếu không làm được, hoặc
+ * { conversationId (chat riêng với bot), count } rồi chạy tóm tắt ở nền.
+ */
+export const summarizeUnread = async (conversation, user) => {
+  const userId = user._id.toString();
+  if (!llm.isReady()) return fail(503, AI_OFF_TEXT);
+
+  const bot = await getKomiBot();
+  if (!bot) return fail(503, AI_OFF_TEXT);
+  if (hasParticipant(conversation, bot._id) && conversation.type === "direct") {
+    return fail(400, "Không cần tóm tắt cuộc chat với Komi AI");
+  }
+
+  const unread = conversation.unreadCounts?.get?.(userId) ?? conversation.unreadCounts?.[userId] ?? 0;
+  if (unread <= 0) return fail(400, "Không có tin chưa đọc để tóm tắt");
+  const count = Math.min(unread, MAX_SUMMARY_MESSAGES);
+
+  const quota = await takeQuota(userId);
+  if (!quota.ok) return fail(429, quotaExceededText(quota.limit));
+
+  const { conversation: botChat } = await ensureKomiConversation(userId);
+  const { label, messages } = await prepareSummary({ conversation, count, user });
+
+  streamBotReply({
+    conversation: botChat,
+    bot,
+    askerId: userId,
+    quota,
+    buildMessages: async () => messages,
+    prefix: `**Tóm tắt ${count} tin chưa đọc trong ${label}**\n\n`,
+  }).catch((error) => console.error("Lỗi khi Komi AI tóm tắt:", error));
+
+  return { conversationId: botChat._id.toString(), count };
 };
 
 /**

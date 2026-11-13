@@ -506,3 +506,83 @@ describe("hạn mức lượt hỏi trong chat", () => {
     assert.ok(!after.participants.some((p) => p.userId.equals(bot._id)));
   });
 });
+
+describe("tóm tắt tin chưa đọc", () => {
+  let team, AiUsage;
+  const summarize = (user, conversationId = team._id) =>
+    request(app).post(`/api/conversations/${conversationId}/summary`).set(auth(user));
+  const sendGroup = (user, content) =>
+    request(app).post("/api/messages/group").set(auth(user)).send({ conversationId: team._id, content }).expect(201);
+
+  before(async () => {
+    ({ default: AiUsage } = await import("../src/models/AiUsage.js"));
+    team = await models.Conversation.create({
+      type: "group",
+      participants: [{ userId: A._id }, { userId: B._id }],
+      group: { name: "Phòng Kinh doanh" },
+      lastMessageAt: new Date(),
+    });
+    // tin cũ A đã đọc: không được đưa vào bản tóm tắt
+    await sendGroup(B, "Tin cũ đã đọc rồi");
+    await request(app).patch(`/api/conversations/${team._id}/seen`).set(auth(A)).expect(200);
+
+    await sendGroup(B, "Chốt gửi báo giá cho khách Hoà Phát trước thứ Sáu");
+    await sendGroup(B, "An phụ trách phần slide nhé");
+    await sendGroup(B, "Link tài liệu: https://example.com/bao-gia");
+  });
+
+  test("participants trả về có isBot", async () => {
+    const convo = await myKomiConversation(A);
+    const botParticipant = convo.participants.find((p) => p._id === bot._id.toString());
+    assert.equal(botParticipant.isBot, true);
+    assert.ok(convo.participants.filter((p) => p._id !== bot._id.toString()).every((p) => p.isBot === false));
+  });
+
+  test("tóm tắt vào chat riêng với bot, chỉ gồm tin chưa đọc, không đánh dấu đã đọc", async () => {
+    const calls = spyChat(async function* () {
+      yield "- Gửi báo giá trước thứ Sáu";
+    });
+    const res = await summarize(A).expect(202);
+    const botChat = await myKomiConversation(A);
+    assert.deepEqual(res.body, { conversationId: botChat._id, count: 3 });
+
+    const summary = await waitFor(async () =>
+      (await botMessages(botChat._id)).find((m) => m.content.startsWith("**Tóm tắt")),
+    );
+    assert.equal(summary.content, "**Tóm tắt 3 tin chưa đọc trong nhóm «Phòng Kinh doanh»**\n\n- Gửi báo giá trước thứ Sáu");
+
+    const prompt = calls[0].messages.map((m) => m.content).join("\n");
+    assert.match(prompt, /binh: Chốt gửi báo giá cho khách Hoà Phát trước thứ Sáu/);
+    assert.match(prompt, /binh: Link tài liệu: https:\/\/example\.com\/bao-gia/);
+    assert.match(prompt, /Người dùng: an/);
+    assert.doesNotMatch(prompt, /Tin cũ đã đọc rồi/);
+
+    // bản tóm tắt không có trong nhóm, và A vẫn còn 3 tin chưa đọc ở nhóm
+    assert.equal((await botMessages(team._id)).length, 0);
+    const after = await models.Conversation.findById(team._id);
+    assert.equal(after.unreadCounts.get(A._id.toString()), 3);
+  });
+
+  test("không tóm tắt được: người ngoài 404, không có tin chưa đọc 400, chat với bot 400, AI tắt 503", async () => {
+    const calls = spyChat();
+    await summarize(C).expect(404);
+    const none = await summarize(B).expect(400); // B tự gửi các tin nên không có tin chưa đọc
+    assert.equal(none.body.message, "Không có tin chưa đọc để tóm tắt");
+    await summarize(A, (await myKomiConversation(A))._id).expect(400);
+
+    delete process.env.LLM_PROVIDER;
+    await summarize(A).expect(503);
+    assert.equal(calls.length, 0);
+  });
+
+  test("hết lượt hỏi thì 429, không gọi LLM", async () => {
+    process.env.AI_DAILY_LIMIT = "1";
+    await AiUsage.deleteMany({ userId: A._id });
+    await AiUsage.create({ userId: A._id, day: (await import("../src/ai/quota.js")).vnDay(), count: 1 });
+    const calls = spyChat();
+
+    const res = await summarize(A).expect(429);
+    assert.match(res.body.message, /hết 1 lượt/);
+    assert.equal(calls.length, 0);
+  });
+});

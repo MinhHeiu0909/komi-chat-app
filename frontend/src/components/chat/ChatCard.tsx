@@ -10,6 +10,8 @@ interface ChatCardProps {
   unreadCount?: number;
   leftSection: React.ReactNode;
   subtitle: React.ReactNode;
+  // nút phụ bên phải dòng phụ đề (vd. "Tóm tắt")
+  action?: React.ReactNode;
 }
 
 const ChatCard = ({
@@ -21,6 +23,7 @@ const ChatCard = ({
   unreadCount,
   leftSection,
   subtitle,
+  action,
 }: ChatCardProps) => {
   return (
     <Card
@@ -53,6 +56,7 @@ const ChatCard = ({
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 flex-1 min-w-0">{subtitle}</div>
+            {action}
           </div>
         </div>
       </div>

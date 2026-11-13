@@ -82,8 +82,12 @@ const ChatWindowBody = () => {
 
   if (!messages?.length) {
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground ">
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-4 text-muted-foreground">
         Chưa có tin nhắn nào trong cuộc trò chuyện này.
+        {/* cuộc chat với Komi AI còn trống mà bot đang viết (vd. bản tóm tắt đầu tiên) */}
+        <div className="w-full">
+          <AiStreamBubbles convo={selectedConvo} />
+        </div>
       </div>
     );
   }

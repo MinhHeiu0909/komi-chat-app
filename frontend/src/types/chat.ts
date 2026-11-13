@@ -3,6 +3,7 @@ export interface Participant {
   displayName: string;
   avatarUrl?: string | null;
   joinedAt: string;
+  isBot?: boolean; // Komi AI
 }
 
 export interface SeenUser {

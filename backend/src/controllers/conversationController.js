@@ -3,7 +3,7 @@ import Message from "../models/Message.js";
 import { io, announceConversation } from "../socket/index.js";
 import { isValidObjectId } from "../middlewares/conversationMiddleware.js";
 import { findOrCreateDirectConversation } from "../utils/directConversation.js";
-import { ensureKomiConversation } from "../ai/komiBot.js";
+import { ensureKomiConversation, summarizeUnread } from "../ai/komiBot.js";
 import {
   CONVERSATION_POPULATE,
   formatConversation,
@@ -187,6 +187,22 @@ export const markAsSeen = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi khi mark as seen", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+/**
+ * "Tôi đã bỏ lỡ gì": Komi AI tóm tắt các tin chưa đọc của conversation này
+ * vào cuộc chat riêng của người dùng với bot. Trả 202 ngay, bản tóm tắt tới qua socket.
+ * req.conversation đã được requireConversationMember kiểm tra.
+ */
+export const summarizeUnreadMessages = async (req, res) => {
+  try {
+    const result = await summarizeUnread(req.conversation, req.user);
+    if (result.error) return res.status(result.error.status).json({ message: result.error.message });
+    return res.status(202).json(result);
+  } catch (error) {
+    console.error("Lỗi khi tóm tắt tin chưa đọc", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };

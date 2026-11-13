@@ -51,6 +51,14 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Mỗi lần bot gọi LLM tính một lượt cho người hỏi (dừng giữa chừng vẫn tính); lỗi phía nhà cung cấp/server thì hoàn lượt; AI tắt thì không tính.
   - Hết lượt: chỉ người hỏi nhận `ai:error { conversationId, message }` (frontend hiện toast); không gọi LLM, không lưu tin, bot không vào nhóm.
   - `npm test` backend 80/80 (5 test trong `test/quota.test.js`, 3 test tích hợp trong `test/komiBot.test.js`); `npm run build` frontend qua. Chưa thử toast trên trình duyệt.
+- **Việc 5 — tóm tắt tin chưa đọc (2026-11-12):** chủ repo chọn nút "Tóm tắt" ở danh sách chat (mở cuộc chat ra là bị đánh dấu đã đọc ngay, nên nút phải ở ngoài).
+  - `POST /api/conversations/:conversationId/summary` (qua `requireConversationMember`): lấy `unreadCounts` của người hỏi (tối đa 100 tin, 12.000 ký tự), tốn 1 lượt, trả 202 `{ conversationId (chat với bot), count }`; bản tóm tắt stream vào cuộc chat riêng với Komi AI, có tiêu đề "Tóm tắt N tin chưa đọc trong …". Không đánh dấu đã đọc. Lỗi: 404 người ngoài, 400 không có tin chưa đọc / chat với bot, 429 hết lượt, 503 AI tắt.
+  - `komiBot.js`: tách phần streaming thành `streamBotReply` dùng chung cho trả lời thường và tóm tắt. `prompt.js`: `prepareSummary` (tin dạng "[dd/MM HH:mm] Tên: nội dung", giờ VN).
+  - Participants trả ra có `isBot` (frontend ẩn nút tóm tắt ở chat với bot).
+  - Frontend: `SummarizeButton.tsx` trên thẻ chat có tin chưa đọc; bấm thì mở cuộc chat với Komi AI. Cuộc chat với bot còn trống vẫn hiện bong bóng đang trả lời.
+  - `npm test` backend 84/84 (4 test mới); `npm run build` frontend qua.
+  - **Đã thử trên trình duyệt** (MongoDB tạm + `LLM_PROVIDER=fake`, `AI_DAILY_LIMIT=2`): nút chỉ hiện ở nhóm có tin chưa đọc, bấm thì mở chat với Komi AI có bản tóm tắt, nhóm vẫn giữ tin chưa đọc; lần thứ 3 hiện toast hết lượt; nhắn cho bot khi hết lượt cũng hiện toast (`ai:error`), bot không trả lời.
+  - Danh sách chat hiện ký hiệu markdown thô của bản tóm tắt (`**Tóm tắt…`), giống hạn chế đã có với markdown.
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 
