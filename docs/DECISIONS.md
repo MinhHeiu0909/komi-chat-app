@@ -77,6 +77,7 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
   - Thư viện trích chữ: **`pdfjs-dist`** cho PDF (trích theo từng trang để trích dẫn được số trang), **`mammoth`** cho `.docx` (trích dẫn tới tên file, không có số trang).
 - **Vì sao:** dùng lại Cloudinary sẵn có, không thêm dịch vụ lưu trữ; giới hạn đủ cho hợp đồng/báo cáo thường gặp mà không vượt hạn mức token free.
 - **Đánh đổi:** file dài hơn giới hạn chưa hỏi được (chờ RAG ở Giai đoạn 4).
+- **Hỏi đáp (2026-11-13):** bot xét 3 file gửi gần nhất của cuộc trò chuyện (tổng ≤ 50.000 ký tự), kèm vào mọi câu hỏi trong cuộc trò chuyện đó; chưa chọn file theo câu hỏi.
 - **Xem lại khi:** làm kho tài liệu chung (Giai đoạn 4).
 
 ## Chưa quyết

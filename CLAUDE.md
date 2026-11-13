@@ -80,9 +80,9 @@ cd frontend && npm run build
 
 - **Giai đoạn 0 (nền tảng) và Giai đoạn 1 (UX chat): đã xong**, đã merge vào `main` (PR #1, PR #2). Chi tiết từng việc và kết quả kiểm chứng: `docs/PROGRESS.md`.
 - **Giai đoạn 2 — Komi AI cơ bản: đã xong**, đã merge vào `main` (PR #3). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
-- **Giai đoạn 3 — Tài liệu trong chat: đang làm** trên nhánh `phase-3-chat-documents`. Đã xong: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`), trích chữ lúc tải lên (`utils/documentText.js`, PDF theo trang). Còn: hỏi đáp trên file có trích dẫn, tìm tin nhắn theo từ khoá.
+- **Giai đoạn 3 — Tài liệu trong chat: đang làm** trên nhánh `phase-3-chat-documents`. Đã xong: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`), trích chữ lúc tải lên (`utils/documentText.js`, PDF theo trang), hỏi đáp trên 3 file gần nhất của cuộc trò chuyện có ghi nguồn (đã thử với Gemini thật). Còn: tìm tin nhắn theo từ khoá.
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
-- `npm test` backend: 99/99 (2026-11-13).
+- `npm test` backend: 104/104 (2026-11-13).
 
 Ghi chú vận hành:
 

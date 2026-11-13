@@ -77,6 +77,12 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Gửi tin kèm file không đọc phần chữ (projection), tin nhắn không chứa chữ đã trích.
   - Test dùng PDF / `.docx` thật dựng ngay trong test (`test/documentFixtures.js`). `npm test` backend 99/99 (5 test mới).
   - Chưa thử với file PDF/Word thật từ máy người dùng (PDF nhiều font, tiếng Việt có dấu trong PDF).
+- **Việc 3 — hỏi đáp trên file, có trích dẫn (2026-11-13):** dùng luôn chat riêng với Komi AI và `@komi` trong nhóm.
+  - `buildDocumentsBlock` (`ai/prompt.js`): lấy **3 file gửi gần nhất của đúng cuộc trò chuyện** (người hỏi là thành viên), file mới ưu tiên, tổng tối đa 50.000 ký tự. PDF đánh dấu `[Trang N]`; Word không có số trang. File quá dài, PDF scan, file hỏng, hoặc không còn chỗ thì chỉ ghi chú lý do để bot nói lại với người hỏi.
+  - Khối tài liệu đặt ở vai người dùng ngay sau system (kèm một lượt xác nhận của bot), không nằm trong system prompt; nội dung file không đóng được thẻ `<tài_liệu>`, tên file bỏ ký tự `" < >`. System prompt chỉ thêm quy tắc ghi nguồn "(Nguồn: <tên file>, trang N)" khi cuộc trò chuyện có file.
+  - `npm test` backend 104/104 (5 test mới trong `test/komiBot.test.js`).
+  - **Đã thử với Gemini thật** (`gemini-3.5-flash-lite`, prompt dựng bằng `buildKomiPrompt` trên MongoDB trong bộ nhớ, PDF mẫu 3 trang): trả lời đúng ngân sách, người phụ trách, lịch đào tạo và ghi đúng số trang, 1,5 giây. Chưa thử trên giao diện với file tải lên Cloudinary thật.
+  - Đánh đổi: mỗi câu hỏi trong cuộc trò chuyện có file đều kèm chữ của file (tốn token, có thể chậm hơn); chỉ xét 3 file gần nhất.
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 
