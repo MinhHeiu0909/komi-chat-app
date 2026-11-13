@@ -26,7 +26,7 @@ Mỗi quyết định ghi: ngày, chọn gì, vì sao, khi nào nên xem lại.
   - Groq: giới hạn theo từng model, ví dụ `openai/gpt-oss-120b` 30 request/phút, 1.000 request/ngày, 200.000 token/ngày. Base URL kiểu OpenAI: `https://api.groq.com/openai/v1`.
   - OpenRouter: model đuôi `:free` chỉ 50 request/ngày nếu chưa từng nạp $10 — không dùng.
 - **Lưu ý:** ngoài EEA, Thụy Sĩ và Anh, Google có thể dùng dữ liệu gửi qua free tier để huấn luyện model. Giai đoạn dev chỉ dùng tài liệu mẫu.
-- **Cần kiểm tra khi bắt đầu code:** endpoint OpenAI-compatible của Gemini và tên model Flash hiện hành (xem tài liệu Gemini API).
+- **Đã kiểm tra (2026-11-12):** endpoint OpenAI-compatible của Gemini là `https://generativelanguage.googleapis.com/v1beta/openai/`. Model chat đã chọn: xem mục 2026-11-13 bên dưới.
 - **Xem lại khi:** có người dùng thật, hoặc cần đưa tài liệu thật vào.
 - **Nguồn:** https://geotoolbox.ai/blog/gemini-api-pricing · https://klymentiev.com/blog/gemini-api-free-tier · https://benchlm.ai/md/free-tier/groq.md · https://benchlm.ai/md/free-tier/openrouter.md
 
@@ -61,8 +61,15 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Vì sao:** mở cuộc chat ra là bị đánh dấu đã đọc ngay nên nút phải ở ngoài; "tin chưa đọc" là của riêng từng người nên bản tóm tắt chỉ người đó thấy; dùng lại luồng streaming và nút dừng sẵn có.
 - **Đánh đổi:** lịch sử chat với bot lẫn các bản tóm tắt; tối đa 100 tin chưa đọc gần nhất.
 
+## 2026-11-13 — Model chat: `gemini-3.5-flash-lite`
+
+- **Chọn:** `LLM_MODEL=gemini-3.5-flash-lite` (free tier Google AI Studio, không gắn thẻ).
+- **Vì sao:** thử bằng key của chủ repo: `gemini-3.8-flash` (Flash mới nhất) trả lời được nhưng mất hơn 60 giây cho một câu ngắn (model "suy nghĩ" trước), vượt timeout 30 giây không nhận dữ liệu của provider. `gemini-3.5-flash-lite` trả chữ đầu tiên sau khoảng 17,5 giây (đo một lần). Không có `gemini-3.8-flash-lite`, chỉ có bản `-tts`.
+- **Đánh đổi:** vẫn chờ 15–20 giây mỗi câu và gần như không thấy chữ chạy dần (trả cả câu trong 1–2 đoạn). Chỉ đổi biến môi trường, không sửa code.
+- **Xem lại khi:** thấy chậm quá (thử tham số `reasoning_effort` để giảm phần suy nghĩ), hoặc Google đổi danh sách model free.
+
 ## Chưa quyết
 
 - Ai được xem kho tài liệu chung (mọi người trong app, hay theo nhóm)?
 - Lưu file tài liệu ở đâu (Cloudinary đang dùng cho ảnh, hay nơi khác)?
-- Model cụ thể cho chat và cho embedding.
+- Model cho embedding (Giai đoạn 4).

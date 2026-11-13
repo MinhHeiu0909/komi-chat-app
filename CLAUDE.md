@@ -78,7 +78,7 @@ cd frontend && npm run build
 ## Trạng thái hiện tại
 
 - **Giai đoạn 0 (nền tảng) và Giai đoạn 1 (UX chat): đã xong**, đã merge vào `main` (PR #1, PR #2). Chi tiết từng việc và kết quả kiểm chứng: `docs/PROGRESS.md`.
-- **Giai đoạn 2 — Komi AI cơ bản: đang làm** trên nhánh `phase-2-komi-ai` (tách từ `main` sau PR #2, đã có trên origin). Đã xong lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`) và nút tóm tắt tin chưa đọc. Đã đủ các việc của Giai đoạn 2; còn gọi thử nhà cung cấp thật (Gemini) trước khi mở PR.
+- **Giai đoạn 2 — Komi AI cơ bản: đã xong** trên nhánh `phase-2-komi-ai`, chưa mở PR (chủ repo tự push và mở PR). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
 - `npm test` backend: 84/84 (2026-11-12).
 
@@ -113,7 +113,7 @@ Ghi chú:
 
 - Giai đoạn 3 **chưa dùng RAG**: file đủ nhỏ thì đưa cả nội dung đã trích vào prompt; file quá dài thì báo giới hạn cho người dùng. RAG chỉ vào ở Giai đoạn 4.
 - **Đã bỏ khỏi lộ trình, chỉ thêm lại khi chủ repo yêu cầu:** nhắc việc (`create_reminder`), bình chọn (`create_poll`), fine-tune mô hình kiểm duyệt (PhoBERT), BullMQ + Redis, hybrid search + rerank, service Python (FastAPI), tìm kiếm web.
-- **Chưa quyết, hỏi chủ repo khi làm tới:** ai được xem kho tài liệu chung; lưu file tài liệu ở đâu; dùng model cụ thể nào.
+- **Chưa quyết, hỏi chủ repo khi làm tới:** ai được xem kho tài liệu chung; lưu file tài liệu ở đâu; model cho embedding. Model chat hiện dùng `gemini-3.5-flash-lite` (xem `docs/DECISIONS.md`).
 - Ghi mọi quyết định và đánh đổi vào `docs/DECISIONS.md`.
 
 Dữ liệu seed (`backend/scripts/seed.js`) được viết sẵn các chi tiết có thể hỏi lại (link staging, giờ họp, ai phụ trách phần nào, ngân sách chuyến đi) để dùng làm bộ câu hỏi eval cho RAG; khi thêm dữ liệu seed, giữ tính chất này. Seed hiện theo bối cảnh nhóm sinh viên làm đồ án; khi thêm dữ liệu mới, viết theo bối cảnh văn phòng.

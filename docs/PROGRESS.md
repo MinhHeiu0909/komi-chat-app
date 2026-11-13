@@ -27,7 +27,7 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
 - Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore), rồi `docker compose up -d backend`. Chạy backend trực tiếp thì dùng `backend/.env`.
 - Khi thử trên trình duyệt: ảnh chụp màn hình của công cụ có thể nhỏ hơn viewport (800×600 so với 1024×768) — toạ độ bấm phải quy đổi.
 
-**Giai đoạn 2 — Komi AI cơ bản: đang làm** (nhánh `phase-2-komi-ai`)
+**Giai đoạn 2 — Komi AI cơ bản: đã xong** (nhánh `phase-2-komi-ai`, chưa mở PR)
 - **Việc 1 — lớp `LLMProvider` (2026-11-12):** `backend/src/ai/llm.js` (object `llm`: `isReady()`, `streamChat()`, `chat()`), `ai/errors.js` (`LLMError`, 3 mã: `LLM_RATE_LIMIT`, `LLM_AUTH`, `LLM_ERROR`), `ai/providers/fake.js`, `ai/providers/openaiCompatible.js` (fetch có sẵn, đọc SSE, timeout 30s không nhận byte, dừng qua `AbortSignal`, không tự gọi lại). `LLM_PROVIDER`: trống = tắt, `fake`, `openai-compatible`.
 - Người hỏi bấm dừng → ném lại lỗi abort gốc (`err.name === "AbortError"`), không phải `LLMError`.
 - Gemini trả 400 kèm "API key not valid" khi sai key → cũng xếp vào `LLM_AUTH` (theo mô tả lỗi phổ biến, chưa thử với key thật).
@@ -59,6 +59,8 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - `npm test` backend 84/84 (4 test mới); `npm run build` frontend qua.
   - **Đã thử trên trình duyệt** (MongoDB tạm + `LLM_PROVIDER=fake`, `AI_DAILY_LIMIT=2`): nút chỉ hiện ở nhóm có tin chưa đọc, bấm thì mở chat với Komi AI có bản tóm tắt, nhóm vẫn giữ tin chưa đọc; lần thứ 3 hiện toast hết lượt; nhắn cho bot khi hết lượt cũng hiện toast (`ai:error`), bot không trả lời.
   - Danh sách chat hiện ký hiệu markdown thô của bản tóm tắt (`**Tóm tắt…`), giống hạn chế đã có với markdown.
+- **Thử với Gemini thật (2026-11-13):** key free tier của chủ repo gọi được API (liệt kê 63 model). `gemini-3.8-flash` mất hơn 60 giây → chọn `gemini-3.5-flash-lite` (khoảng 17,5 giây tới chữ đầu tiên). Chủ repo chạy app với `npm run dev` + MongoDB qua `docker compose up -d mongo` và xác nhận Komi AI hoạt động. Chi tiết ở `docs/DECISIONS.md`.
+- **Giai đoạn 2 xong:** `npm test` backend 84/84, `npm run build` frontend qua. Còn chủ repo push nhánh và mở PR vào `main`.
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 
