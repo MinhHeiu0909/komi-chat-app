@@ -739,3 +739,42 @@ describe("hỏi đáp trên file của cuộc trò chuyện", () => {
     assert.ok(messages.every((m) => !m.content.includes("<tài_liệu")));
   });
 });
+
+describe("ngôn ngữ trả lời", () => {
+  test("nhận biết ngôn ngữ câu hỏi", async () => {
+    const { detectReplyLanguage } = await import("../src/ai/prompt.js");
+    const cases = [
+      ["What is the capital of Vietnam?", "en"],
+      ["How many countries in Asia ?", "en"],
+      ["Who won the 2019 Worlds?", "en"],
+      ["Còn năm 2023 thì sao", "vi"],
+      ["con nam 2023 thi sao", "vi"], // tiếng Việt không dấu
+      ["@komi tóm tắt giúp", "vi"],
+      ["", "vi"],
+      ["2023?", "vi"],
+    ];
+    for (const [text, lang] of cases) assert.equal(detectReplyLanguage(text), lang, text);
+  });
+
+  test("lịch sử tiếng Việt, câu mới nhất tiếng Anh → prompt ra lệnh trả lời tiếng Anh", async () => {
+    const convo = await myKomiConversation(C);
+    const ask = async (content) => {
+      const calls = spyChat();
+      await request(app)
+        .post("/api/messages/direct")
+        .set(auth(C))
+        .send({ recipientId: bot._id.toString(), conversationId: convo._id, content })
+        .expect(201);
+      await waitFor(() => calls.length > 0);
+      // chờ bot lưu câu trả lời để lượt sau có lịch sử đủ
+      await waitFor(async () => (await botMessages(convo._id)).length > 0);
+      return calls[0].messages[0].content;
+    };
+
+    const vi = await ask("Thủ đô của Pháp là gì?");
+    assert.match(vi, /trả lời bằng tiếng Việt\.$/);
+    const en = await ask("What is the capital of Vietnam?");
+    assert.match(en, /You MUST reply in English/);
+    assert.doesNotMatch(en, /trả lời bằng tiếng Việt\.$/);
+  });
+});
