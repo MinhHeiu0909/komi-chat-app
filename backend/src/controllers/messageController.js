@@ -3,6 +3,7 @@ import Message from "../models/Message.js";
 import { createMessageAndEmit, messagePreviewText } from "../utils/messageHelper.js";
 import ChatFile from "../models/ChatFile.js";
 import { cleanFileName, detectDocumentKind, fileStorage } from "../utils/messageFile.js";
+import { extractDocumentText } from "../utils/documentText.js";
 import { handleKomiTrigger } from "../ai/komiBot.js";
 import { findOrCreateDirectConversation } from "../utils/directConversation.js";
 import { populateAndFormat } from "../utils/conversationFormat.js";
@@ -40,7 +41,10 @@ const readContent = async (body, senderId) => {
   if (isGiven(body?.fileId)) {
     const found =
       isValidObjectId(body.fileId) &&
-      (await ChatFile.findOne({ _id: body.fileId, uploaderId: senderId }).lean());
+      (await ChatFile.findOne(
+        { _id: body.fileId, uploaderId: senderId },
+        { url: 1, name: 1, size: 1, kind: 1 }, // không tải phần chữ đã trích
+      ).lean());
     if (!found) return { error: "Tệp không hợp lệ" };
     file = { fileId: found._id, url: found.url, name: found.name, size: found.size, kind: found.kind };
   }
@@ -240,7 +244,11 @@ export const uploadMessageFile = async (req, res) => {
     }
 
     const userId = req.user._id;
-    const result = await fileStorage.upload(req.file.buffer, userId.toString(), kind);
+    // trích chữ song song với tải lên; không đọc được chữ thì vẫn lưu file (textStatus báo lý do)
+    const [result, text] = await Promise.all([
+      fileStorage.upload(req.file.buffer, userId.toString(), kind),
+      extractDocumentText(req.file.buffer, kind),
+    ]);
     const file = await ChatFile.create({
       uploaderId: userId,
       url: result.secure_url,
@@ -248,10 +256,22 @@ export const uploadMessageFile = async (req, res) => {
       name: cleanFileName(req.file.originalname, kind),
       size: req.file.size,
       kind,
+      textStatus: text.status,
+      charCount: text.charCount,
+      textTruncated: text.truncated,
+      pages: text.pages,
     });
 
     return res.status(201).json({
-      file: { _id: file._id, url: file.url, name: file.name, size: file.size, kind: file.kind },
+      file: {
+        _id: file._id,
+        url: file.url,
+        name: file.name,
+        size: file.size,
+        kind: file.kind,
+        textStatus: file.textStatus,
+        charCount: file.charCount,
+      },
     });
   } catch (error) {
     console.error("Lỗi xảy ra khi tải file tin nhắn", error);

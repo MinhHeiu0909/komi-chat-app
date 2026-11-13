@@ -71,6 +71,12 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Frontend: nút đính kèm (kẹp giấy) nhận cả ảnh lẫn PDF/Word; tin đang gửi hiện thẻ file; thẻ file trong bong bóng mở link Cloudinary.
   - `npm test` backend 94/94 (10 test mới trong `test/messageFile.test.js`, kho lưu giả); `npm run build` frontend qua.
   - **Chưa thử trên trình duyệt / với Cloudinary thật** (`backend/.env` chưa có khoá Cloudinary). Cần kiểm tra: tài khoản Cloudinary free có thể chặn tải file PDF theo mặc định; nếu link file trả 401 thì bật "Allow delivery of PDF and ZIP files" trong Settings → Security của Cloudinary.
+- **Việc 2 — trích chữ từ file (2026-11-13):** chạy ngay lúc tải lên, song song với tải lên Cloudinary.
+  - Thư viện (chủ repo đã duyệt, ghim đúng phiên bản): `pdfjs-dist@6.4.299` (chọn bản ra 3/10 thay vì 6.5.438 mới ra 12 ngày; cần Node ≥ 22.13) và `mammoth@1.13.0`. `npm audit` không tăng (vẫn 1 critical, 3 high như trước).
+  - `backend/src/utils/documentText.js`: PDF trích theo từng trang (`pages[].number`), `.docx` một khối không có số trang. Lưu vào `ChatFile`: `textStatus` (`ok` / `empty` = không có chữ như PDF scan / `failed` = hỏng, có mật khẩu), `charCount`, `textTruncated`, `pages`. Lưu tối đa 1.000.000 ký tự mỗi file. Không đọc được chữ thì vẫn tải lên thành công.
+  - Gửi tin kèm file không đọc phần chữ (projection), tin nhắn không chứa chữ đã trích.
+  - Test dùng PDF / `.docx` thật dựng ngay trong test (`test/documentFixtures.js`). `npm test` backend 99/99 (5 test mới).
+  - Chưa thử với file PDF/Word thật từ máy người dùng (PDF nhiều font, tiếng Việt có dấu trong PDF).
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 

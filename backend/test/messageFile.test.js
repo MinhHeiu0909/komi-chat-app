@@ -2,6 +2,10 @@ import { test, before, after, afterEach, describe } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { startDatabase, stopDatabase, auth, createUser } from "./helpers.js";
+import { makePdf, makeDocx } from "./documentFixtures.js";
+
+const PDF = makePdf(["Tai lieu mau"]);
+const DOCX = makeDocx(["Biên bản họp"]);
 
 /**
  * Gửi file tài liệu (PDF / Word .docx) trong chat. Thay fileStorage bằng bản giả,
@@ -12,13 +16,6 @@ let app, models, ChatFile, fileStorage, messageFile;
 let A, B, C, group;
 let original;
 
-const PDF = Buffer.from("%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n");
-// file zip tối giản có mục word/document.xml (đủ để nhận dạng là .docx)
-const DOCX = Buffer.concat([
-  Buffer.from([0x50, 0x4b, 0x03, 0x04]),
-  Buffer.alloc(26),
-  Buffer.from("word/document.xml<w:document/>"),
-]);
 
 const uploads = [];
 
@@ -155,5 +152,59 @@ describe("gửi tin kèm file", () => {
   test("người ngoài nhóm gửi file vào nhóm → 404", async () => {
     const { body } = await upload(C, PDF, "c.pdf").expect(201);
     await sendGroup(C, { fileId: body.file._id }).expect(404);
+  });
+});
+
+describe("trích chữ lúc tải lên", () => {
+  test("PDF: lưu chữ theo từng trang", async () => {
+    const pdf = makePdf(["Ngan sach du an: 50 trieu\nHan chot 15/12", "Trang hai: hop luc 9h sang thu Hai"]);
+    const res = await upload(A, pdf, "ke-hoach.pdf").expect(201);
+    assert.equal(res.body.file.textStatus, "ok");
+
+    const saved = await ChatFile.findById(res.body.file._id).lean();
+    assert.equal(saved.textStatus, "ok");
+    assert.deepEqual(saved.pages, [
+      { number: 1, text: "Ngan sach du an: 50 trieu\nHan chot 15/12" },
+      { number: 2, text: "Trang hai: hop luc 9h sang thu Hai" },
+    ]);
+    assert.equal(saved.charCount, saved.pages.reduce((n, p) => n + p.text.length, 0));
+    assert.equal(saved.textTruncated, false);
+  });
+
+  test("Word .docx: giữ dấu tiếng Việt, không có số trang", async () => {
+    const docx = makeDocx(["Biên bản họp quý 4", "Chị Hoa phụ trách báo giá cho khách Hoà Phát"]);
+    const res = await upload(B, docx, "Biên bản.docx").expect(201);
+    const saved = await ChatFile.findById(res.body.file._id).lean();
+    assert.equal(saved.textStatus, "ok");
+    assert.equal(saved.pages.length, 1);
+    assert.equal(saved.pages[0].number, undefined);
+    assert.match(saved.pages[0].text, /Chị Hoa phụ trách báo giá cho khách Hoà Phát/);
+  });
+
+  test("PDF không có chữ (giống bản scan) → empty; PDF hỏng → failed; vẫn tải lên được", async () => {
+    const scan = await upload(A, makePdf(["", ""]), "scan.pdf").expect(201);
+    assert.equal(scan.body.file.textStatus, "empty");
+    assert.deepEqual((await ChatFile.findById(scan.body.file._id).lean()).pages, []);
+
+    const broken = await upload(A, Buffer.from("%PDF-1.7 hong roi"), "hong.pdf").expect(201);
+    assert.equal(broken.body.file.textStatus, "failed");
+  });
+
+  test("gửi tin kèm file không đưa phần chữ đã trích ra ngoài", async () => {
+    const { body } = await upload(A, makePdf(["Bi mat noi bo"]), "noi-bo.pdf").expect(201);
+    const res = await sendGroup(A, { fileId: body.file._id }).expect(201);
+    assert.deepEqual(Object.keys(res.body.message.file).sort(), ["fileId", "kind", "name", "size", "url"]);
+    const stored = await models.Message.findById(res.body.message._id).lean();
+    assert.equal(stored.file.pages, undefined);
+  });
+
+  test("chữ quá dài bị cắt khi lưu, giữ phần đầu", async () => {
+    const { extractDocumentText, MAX_STORED_CHARS } = await import("../src/utils/documentText.js");
+    const long = "Mot dong chu dai. ".repeat(Math.ceil(MAX_STORED_CHARS / 18) + 100);
+    const result = await extractDocumentText(makeDocx([long]), "docx");
+    assert.equal(result.status, "ok");
+    assert.equal(result.truncated, true);
+    assert.equal(result.charCount, MAX_STORED_CHARS);
+    assert.ok(result.pages[0].text.startsWith("Mot dong chu dai."));
   });
 });
