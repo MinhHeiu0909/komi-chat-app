@@ -5,30 +5,18 @@ import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { useChatStore } from "@/stores/useChatStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { Reply, SmilePlus } from "lucide-react";
-import { toast } from "sonner";
+import { FileText, Reply, SmilePlus } from "lucide-react";
 import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { REACTIONS, groupReactions } from "@/lib/reactions";
 import SeenAvatars from "./SeenAvatars";
 import MessageContent from "./MessageContent";
+import { formatFileSize } from "@/lib/messageFile";
+import { jumpToMessage } from "@/lib/messageJump";
+import type { MessageFile } from "@/types/chat";
 
 const actionButtonClass =
   "self-center shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity";
-
-// Cuộn tới tin gốc và nháy viền để người dùng thấy nó ở đâu
-const jumpToMessage = (messageId: string) => {
-  const el = document.getElementById(`msg-${messageId}`);
-  if (!el) {
-    toast.info("Tin gốc nằm ở đoạn chat cũ hơn. Cuộn lên để tải thêm.");
-    return;
-  }
-  el.scrollIntoView({ behavior: "smooth", block: "center" });
-  // nháy bong bóng (không phải khung ngoài, vì khung ngoài đang có animation nảy vào)
-  const bubble = el.querySelector<HTMLElement>("[data-bubble]") ?? el;
-  bubble.classList.add("reply-target-flash");
-  window.setTimeout(() => bubble.classList.remove("reply-target-flash"), 1500);
-};
 
 const MessageImage = ({
   src,
@@ -57,6 +45,48 @@ const MessageImage = ({
     </a>
   ) : (
     img
+  );
+};
+
+// Thẻ file PDF/Word trong bong bóng; bấm để mở file (tin đang gửi chưa có link)
+const MessageFileCard = ({
+  file,
+  isOwn,
+  spaced,
+}: {
+  file: MessageFile;
+  isOwn?: boolean;
+  spaced: boolean;
+}) => {
+  const body = (
+    <>
+      <FileText className="size-8 shrink-0" aria-hidden="true" />
+      <span className="min-w-0">
+        <span className="block truncate font-medium">{file.name}</span>
+        <span className="block text-xs opacity-75">
+          {file.kind === "pdf" ? "PDF" : "Word"} · {formatFileSize(file.size)}
+        </span>
+      </span>
+    </>
+  );
+  const className = cn(
+    "flex w-64 max-w-full items-center gap-2 rounded-md px-2 py-2 text-sm",
+    isOwn ? "bg-white/15" : "bg-primary/5",
+    spaced && "mb-2"
+  );
+
+  return file.url ? (
+    <a
+      href={file.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`Mở ${file.name}`}
+      className={cn(className, isOwn ? "hover:bg-white/25" : "hover:bg-primary/10")}
+    >
+      {body}
+    </a>
+  ) : (
+    <div className={className}>{body}</div>
   );
 };
 
@@ -219,7 +249,7 @@ const MessageItem = ({
             {message.replyTo && (
               <button
                 type="button"
-                onClick={() => jumpToMessage(message.replyTo!.messageId)}
+                onClick={() => jumpToMessage(message.conversationId, message.replyTo!.messageId)}
                 className={cn(
                   "mb-2 block w-full text-left rounded-md border-l-2 px-2 py-1 text-xs",
                   message.isOwn
@@ -241,6 +271,13 @@ const MessageItem = ({
                 // ảnh đang gửi là ảnh tạm trên máy (blob:), chưa có link để mở
                 href={message.status ? undefined : message.imgUrl}
                 spaced={Boolean(message.content || message.replyTo)}
+              />
+            )}
+            {message.file && (
+              <MessageFileCard
+                file={message.file}
+                isOwn={message.isOwn}
+                spaced={Boolean(message.content)}
               />
             )}
             {message.content && <MessageContent content={message.content} />}

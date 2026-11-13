@@ -62,6 +62,41 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
 - **Thử với Gemini thật (2026-11-13):** key free tier của chủ repo gọi được API (liệt kê 63 model). `gemini-3.8-flash` mất hơn 60 giây → chọn `gemini-3.5-flash-lite` (khoảng 17,5 giây tới chữ đầu tiên). Chủ repo chạy app với `npm run dev` + MongoDB qua `docker compose up -d mongo` và xác nhận Komi AI hoạt động. Chi tiết ở `docs/DECISIONS.md`.
 - **Giai đoạn 2 xong:** `npm test` backend 84/84, `npm run build` frontend qua. Còn chủ repo push nhánh và mở PR vào `main`.
 
+**Giai đoạn 3 — Tài liệu trong chat: đã xong** (nhánh `phase-3-chat-documents`, tách từ `main` sau PR #3; chờ chủ repo push và mở PR)
+- Quyết định đã chốt (Cloudinary, PDF/.docx ≤ 10MB, tối đa ~50.000 ký tự đưa vào prompt, `pdfjs-dist` + `mammoth`): `docs/DECISIONS.md`.
+- **Việc 1 — gửi file PDF/Word trong chat (2026-11-13):**
+  - Model mới `ChatFile` (`uploaderId`, `url`, `publicId`, `name`, `size`, `kind`); `Message.file` là bản trích `{ fileId, url, name, size, kind }`. Không đổi dữ liệu cũ.
+  - `POST /api/messages/files` (multer 10MB, rate limit 30 lần/10 phút): nhận dạng theo nội dung file (`%PDF-`; zip có `word/document.xml`), không tin đuôi file; tải lên Cloudinary `resource_type: "raw"`, thư mục `komi_chat/files/<userId>`, public_id ngẫu nhiên; tên gốc (sửa lỗi font tiếng Việt của multer) lưu ở DB.
+  - Gửi tin kèm `fileId`: server tìm theo `fileId` + `uploaderId` nên không gửi được file của người khác. Danh sách chat / trích dẫn hiện "📎 tên file"; prompt của bot ghi `[file: tên]`.
+  - Frontend: nút đính kèm (kẹp giấy) nhận cả ảnh lẫn PDF/Word; tin đang gửi hiện thẻ file; thẻ file trong bong bóng mở link Cloudinary.
+  - `npm test` backend 94/94 (10 test mới trong `test/messageFile.test.js`, kho lưu giả); `npm run build` frontend qua.
+  - **Chưa thử trên trình duyệt / với Cloudinary thật** (`backend/.env` chưa có khoá Cloudinary). Cần kiểm tra: tài khoản Cloudinary free có thể chặn tải file PDF theo mặc định; nếu link file trả 401 thì bật "Allow delivery of PDF and ZIP files" trong Settings → Security của Cloudinary.
+- **Việc 2 — trích chữ từ file (2026-11-13):** chạy ngay lúc tải lên, song song với tải lên Cloudinary.
+  - Thư viện (chủ repo đã duyệt, ghim đúng phiên bản): `pdfjs-dist@6.4.299` (chọn bản ra 3/10 thay vì 6.5.438 mới ra 12 ngày; cần Node ≥ 22.13) và `mammoth@1.13.0`. `npm audit` không tăng (vẫn 1 critical, 3 high như trước).
+  - `backend/src/utils/documentText.js`: PDF trích theo từng trang (`pages[].number`), `.docx` một khối không có số trang. Lưu vào `ChatFile`: `textStatus` (`ok` / `empty` = không có chữ như PDF scan / `failed` = hỏng, có mật khẩu), `charCount`, `textTruncated`, `pages`. Lưu tối đa 1.000.000 ký tự mỗi file. Không đọc được chữ thì vẫn tải lên thành công.
+  - Gửi tin kèm file không đọc phần chữ (projection), tin nhắn không chứa chữ đã trích.
+  - Test dùng PDF / `.docx` thật dựng ngay trong test (`test/documentFixtures.js`). `npm test` backend 99/99 (5 test mới).
+  - Chưa thử với file PDF/Word thật từ máy người dùng (PDF nhiều font, tiếng Việt có dấu trong PDF).
+- **Việc 3 — hỏi đáp trên file, có trích dẫn (2026-11-13):** dùng luôn chat riêng với Komi AI và `@komi` trong nhóm.
+  - `buildDocumentsBlock` (`ai/prompt.js`): lấy **3 file gửi gần nhất của đúng cuộc trò chuyện** (người hỏi là thành viên), file mới ưu tiên, tổng tối đa 50.000 ký tự. PDF đánh dấu `[Trang N]`; Word không có số trang. File quá dài, PDF scan, file hỏng, hoặc không còn chỗ thì chỉ ghi chú lý do để bot nói lại với người hỏi.
+  - Khối tài liệu đặt ở vai người dùng ngay sau system (kèm một lượt xác nhận của bot), không nằm trong system prompt; nội dung file không đóng được thẻ `<tài_liệu>`, tên file bỏ ký tự `" < >`. System prompt chỉ thêm quy tắc ghi nguồn "(Nguồn: <tên file>, trang N)" khi cuộc trò chuyện có file.
+  - `npm test` backend 104/104 (5 test mới trong `test/komiBot.test.js`).
+  - **Đã thử với Gemini thật** (`gemini-3.5-flash-lite`, prompt dựng bằng `buildKomiPrompt` trên MongoDB trong bộ nhớ, PDF mẫu 3 trang): trả lời đúng ngân sách, người phụ trách, lịch đào tạo và ghi đúng số trang, 1,5 giây. Chưa thử trên giao diện với file tải lên Cloudinary thật.
+  - Đánh đổi: mỗi câu hỏi trong cuộc trò chuyện có file đều kèm chữ của file (tốn token, có thể chậm hơn); chỉ xét 3 file gần nhất.
+- **Việc 4 — tìm tin nhắn theo từ khoá (2026-11-13):** tìm trong cuộc trò chuyện đang mở.
+  - `GET /api/conversations/:conversationId/search?q=&before=` (qua `requireConversationMember`): khớp nội dung tin và tên file đính kèm, không phân biệt dấu tiếng Việt và hoa/thường ("bao gia" ra "Báo giá", "do an" ra "ĐỒ ÁN"). `utils/messageSearch.js` dựng regex mỗi chữ gốc khớp mọi biến thể dấu, nên không đổi schema, tin cũ vẫn tìm được; ký tự đặc biệt được thoát. 2–100 ký tự, 30 kết quả/lần, mới nhất trước, `before` để xem thêm. Chưa tìm trong nội dung file.
+  - Frontend: nút kính lúp ở đầu khung chat (`MessageSearch.tsx`), tìm sau khi ngừng gõ 300ms; bấm kết quả thì nhảy tới tin. `lib/messageJump.ts` dùng chung cho cả bấm trích dẫn: tin cũ chưa tải thì tự tải thêm trang (tối đa 25 trang).
+  - **Sửa lỗi có sẵn ở `GET /messages`:** `nextCursor` từng là thời gian của tin dư (tin thứ limit+1) rồi bỏ tin đó, nên trang sau không bao giờ trả tin này: mỗi lần cuộn lên tải thêm mất 1 tin ở ranh giới trang (nhóm seed 30 tin chỉ hiện 29). Giờ cursor là tin cũ nhất được trả về; có test hồi quy (code cũ trả 34/35 tin).
+  - `npm test` backend 114/114 (10 test mới trong `test/messageSearch.test.js`); `npm run build` frontend qua, lint file mới sạch.
+  - **Đã thử trên trình duyệt** (MongoDB tạm + seed): gõ "ban staging" ra "Bản staging đã deploy…", gõ "link hop" ra "Link họp: meet.google.com/…"; bấm kết quả thì nhảy và cuộn tới đúng tin. Chưa thử được nhánh tự tải thêm trang trên trình duyệt (nhóm seed ngắn, khung chat đã tự tải hết 30 tin).
+- **Thử Cloudinary thật (2026-11-13):** tải PDF/.docx mẫu lên bằng `fileStorage.upload` rồi mở link: chạy được sau khi chủ repo cấp quyền tải lên cho API key (trước đó 403 "missing permissions create" cho cả ảnh lẫn file) và bật "PDF and ZIP files delivery" (trước đó link PDF trả 401 "deny or ACL failure"; `.docx` mở được ngay). File thử đã xoá.
+- **Ngôn ngữ trả lời (2026-11-13):** chủ repo thử thấy bot lúc trả lời tiếng Việt, lúc tiếng Anh. Sửa system prompt: trả lời bằng ngôn ngữ của tin nhắn mới nhất của người hỏi; ghi nguồn "(Source: <file>, page N)" khi trả lời tiếng Anh. Thử với Gemini thật (lịch sử lẫn tiếng Việt, có `samples/lol-worlds.pdf`): hỏi tiếng Anh → trả lời tiếng Anh, ghi đúng page 3; hỏi tiếng Việt → tiếng Việt, đúng trang 2.
+  - Lần thử trên giao diện của chủ repo không có file nào được gửi vào chat (`chatfiles` trống), nên bot trả lời bằng kiến thức sẵn có, không có nguồn: cần gửi file bằng nút đính kèm, `samples/` chỉ để thử trên máy.
+- **Ngôn ngữ trả lời, lần 2 (2026-11-13):** quy tắc chung vẫn không đủ (`gemini-3.5-flash-lite` trả lời tiếng Việt cho câu hỏi tiếng Anh khi lịch sử chat là tiếng Việt). Giờ code tự đoán ngôn ngữ câu hỏi mới nhất (`detectReplyLanguage` trong `ai/prompt.js`: có dấu → tiếng Việt; không dấu mà có từ tiếng Anh thông dụng → tiếng Anh; còn lại tiếng Việt) và ghi lệnh cụ thể ở cuối system prompt ("You MUST reply in English"). Thêm quy tắc: câu hỏi ngoài tài liệu thì trả lời bình thường, nói rõ không lấy từ tài liệu (trước đó bot lúc từ chối, lúc trả lời).
+  - Chạy lại đúng chuỗi câu hỏi trong ảnh của chủ repo với Gemini thật: câu tiếng Anh → tiếng Anh, câu tiếng Việt (kể cả "Còn năm 2023 thì sao") → tiếng Việt; nguồn và số trang đúng; câu kiến thức chung trả lời kèm ghi chú. `npm test` backend 116/116.
+  - Một lần câu trả lời bị cắt giữa chữ; 3 lần chạy lại cùng prompt (gọi thẳng API và qua `llm.chat`) đều đủ, `finish_reason: stop`. Chưa rõ nguyên nhân; provider hiện chưa đọc `finish_reason`.
+- **Giai đoạn 3 xong (2026-11-14):** chủ repo thử trên giao diện với Cloudinary và Gemini thật (file mẫu tiếng Anh `samples/football-basics.pdf`, `samples/lol-worlds.pdf`): bot đọc đúng file, ghi nguồn đúng trang, trả lời đúng ngôn ngữ. Tạm bỏ qua thử PDF tiếng Việt thật (chủ repo chọn để sau). `npm test` backend 116/116. Còn: chủ repo push nhánh và mở PR vào `main`; CI cần Node ≥ 22.13 vì `pdfjs-dist`.
+
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 
 Giữ lại để tham khảo. Lý do thay đổi: `docs/DECISIONS.md`.

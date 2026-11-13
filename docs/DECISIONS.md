@@ -68,8 +68,20 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Đánh đổi:** vẫn chờ 15–20 giây mỗi câu và gần như không thấy chữ chạy dần (trả cả câu trong 1–2 đoạn). Chỉ đổi biến môi trường, không sửa code.
 - **Xem lại khi:** thấy chậm quá (thử tham số `reasoning_effort` để giảm phần suy nghĩ), hoặc Google đổi danh sách model free.
 
+## 2026-11-13 — Giai đoạn 3: file tài liệu trong chat
+
+- **Chọn (chủ repo duyệt):**
+  - Lưu file trên **Cloudinary** (cùng nơi với ảnh), thư mục `komi_chat/files/<userId>`.
+  - Chỉ nhận **PDF** và **Word `.docx`** (không nhận `.doc` đời cũ), tối đa **10 MB** mỗi file.
+  - Hỏi đáp trên file: đưa cả chữ đã trích vào prompt, tối đa khoảng **50.000 ký tự** mỗi file (cỡ 20–25 trang); quá thì bot báo file quá dài. PDF scan (chỉ có ảnh) thì báo không đọc được chữ, không làm OCR.
+  - Thư viện trích chữ: **`pdfjs-dist`** cho PDF (trích theo từng trang để trích dẫn được số trang), **`mammoth`** cho `.docx` (trích dẫn tới tên file, không có số trang).
+- **Vì sao:** dùng lại Cloudinary sẵn có, không thêm dịch vụ lưu trữ; giới hạn đủ cho hợp đồng/báo cáo thường gặp mà không vượt hạn mức token free.
+- **Đánh đổi:** file dài hơn giới hạn chưa hỏi được (chờ RAG ở Giai đoạn 4).
+- **Hỏi đáp (2026-11-13):** bot xét 3 file gửi gần nhất của cuộc trò chuyện (tổng ≤ 50.000 ký tự), kèm vào mọi câu hỏi trong cuộc trò chuyện đó; chưa chọn file theo câu hỏi.
+- **Chưa hỏi chéo cuộc trò chuyện (2026-11-13, chủ repo chọn):** Komi AI chỉ đọc file của chính cuộc trò chuyện nơi được hỏi; file nằm trong chat 1-1 với người khác thì phải tải lại vào chat với Komi. Không thêm nút "Hỏi Komi về file này". Hỏi trên mọi cuộc trò chuyện người hỏi là thành viên để dành cho Giai đoạn 4 (RAG, lọc theo quyền trong truy vấn).
+- **Xem lại khi:** làm kho tài liệu chung (Giai đoạn 4).
+
 ## Chưa quyết
 
 - Ai được xem kho tài liệu chung (mọi người trong app, hay theo nhóm)?
-- Lưu file tài liệu ở đâu (Cloudinary đang dùng cho ảnh, hay nơi khác)?
 - Model cho embedding (Giai đoạn 4).

@@ -7,6 +7,7 @@ import UserAvatar from "./UserAvatar";
 import StatusBadge from "./StatusBadge";
 import GroupChatAvatar from "./GroupChatAvatar";
 import { useSocketStore } from "@/stores/useSocketStore";
+import MessageSearch from "./MessageSearch";
 
 const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
   const { conversations, activeConversationId } = useChatStore();
@@ -67,9 +68,11 @@ const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
           </div>
 
           {/* name */}
-          <h2 className="font-semibold text-foreground">
+          <h2 className="min-w-0 truncate font-semibold text-foreground">
             {chat.type === "direct" ? otherUser?.displayName : chat.group?.name}
           </h2>
+
+          <MessageSearch key={chat._id} convo={chat} />
         </div>
       </div>
     </header>

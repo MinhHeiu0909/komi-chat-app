@@ -29,3 +29,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# File tài liệu mẫu để thử tay (PDF/Word) — không commit
+samples/

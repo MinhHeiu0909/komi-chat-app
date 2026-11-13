@@ -29,7 +29,8 @@ backend/    Express 5 + Socket.IO + Mongoose (JavaScript, ESM)
   src/socket/index.js   Socket.IO server, online users, announceConversation()
   src/controllers/      auth, user, friend, conversation, message
   src/middlewares/      authMiddleware, conversationMiddleware (kiểm tra thành viên), friendMiddleware, rateLimit, socketMiddleware, uploadMiddleware
-  src/utils/            messageHelper, directConversation, conversationFormat, messageImage
+  src/utils/            messageHelper, directConversation, conversationFormat, messageImage, messageFile, documentText, messageSearch
+  src/ai/               llm (LLMProvider), komiBot, prompt, quota, streams
   scripts/seed.js       dữ liệu demo tiếng Việt
   test/                 test tích hợp (node:test + supertest + mongodb-memory-server)
 frontend/   React 19 + Vite + TypeScript + Zustand + Tailwind 4 + shadcn/ui
@@ -78,14 +79,16 @@ cd frontend && npm run build
 ## Trạng thái hiện tại
 
 - **Giai đoạn 0 (nền tảng) và Giai đoạn 1 (UX chat): đã xong**, đã merge vào `main` (PR #1, PR #2). Chi tiết từng việc và kết quả kiểm chứng: `docs/PROGRESS.md`.
-- **Giai đoạn 2 — Komi AI cơ bản: đã xong** trên nhánh `phase-2-komi-ai`, chưa mở PR (chủ repo tự push và mở PR). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
+- **Giai đoạn 2 — Komi AI cơ bản: đã xong**, đã merge vào `main` (PR #3). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
+- **Giai đoạn 3 — Tài liệu trong chat: đã xong** trên nhánh `phase-3-chat-documents`, chờ chủ repo push và mở PR. Có: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`, Cloudinary `raw`), trích chữ lúc tải lên (`utils/documentText.js`, PDF theo trang), hỏi đáp trên 3 file gần nhất của cuộc trò chuyện có ghi nguồn tới file/trang, trả lời đúng ngôn ngữ câu hỏi, tìm tin trong cuộc trò chuyện không phân biệt dấu (`GET /api/conversations/:id/search`). Đã thử với Cloudinary và Gemini thật, chủ repo đã thử trên giao diện. Chưa thử PDF tiếng Việt thật (chủ repo chọn để sau). Komi AI chỉ đọc file của cuộc trò chuyện nơi được hỏi; hỏi chéo để Giai đoạn 4.
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
-- `npm test` backend: 84/84 (2026-11-12).
+- `npm test` backend: 116/116 (2026-11-13).
 
 Ghi chú vận hành:
 
 - Tài khoản demo: `an.nguyen`, `binh`, `chi`, `dung`, `hoa` / `komi123`.
-- Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore). Chạy backend trực tiếp thì dùng `backend/.env`.
+- Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore). Chạy backend trực tiếp thì dùng `backend/.env`. Cần đủ 3 biến `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`; API key phải có quyền tải lên (thiếu thì 403 "missing permissions create"); phải bật Settings → Security → "PDF and ZIP files delivery" thì link PDF mới mở được (không bật thì 401).
+- File tài liệu mẫu để thử tay đặt trong `samples/` ở gốc repo (đã gitignore, không commit).
 - `frontend/.npmrc` đặt `legacy-peer-deps=true` vì `@emoji-mart/react` chỉ khai báo React ≤18. Không xoá file này.
 - CI chỉ chạy khi push lên `main` hoặc mở PR. Máy không có `gh`: chủ repo mở/merge PR qua giao diện GitHub.
 - Xong một việc: cập nhật ngắn gọn mục này, ghi chi tiết vào `docs/PROGRESS.md`.
@@ -98,7 +101,7 @@ Nợ kỹ thuật đã biết:
 - Đổi mật khẩu chỉ xoá session (refresh token); access token của thiết bị khác vẫn dùng được tới khi hết hạn (30 phút), socket đang mở không bị ngắt.
 - `online-users` được phát cho mọi user đang kết nối, không chỉ bạn bè.
 - Chưa đổi được username/email (cần xác thực email).
-- Cursor phân trang chỉ theo `createdAt`; tin trùng mili-giây có thể bị bỏ sót.
+- Cursor phân trang chỉ theo `createdAt`; tin trùng mili-giây có thể bị bỏ sót. (Lỗi mất 1 tin ở mỗi ranh giới trang đã sửa ngày 2026-11-13.)
 
 ## Lộ trình
 
@@ -113,7 +116,7 @@ Ghi chú:
 
 - Giai đoạn 3 **chưa dùng RAG**: file đủ nhỏ thì đưa cả nội dung đã trích vào prompt; file quá dài thì báo giới hạn cho người dùng. RAG chỉ vào ở Giai đoạn 4.
 - **Đã bỏ khỏi lộ trình, chỉ thêm lại khi chủ repo yêu cầu:** nhắc việc (`create_reminder`), bình chọn (`create_poll`), fine-tune mô hình kiểm duyệt (PhoBERT), BullMQ + Redis, hybrid search + rerank, service Python (FastAPI), tìm kiếm web.
-- **Chưa quyết, hỏi chủ repo khi làm tới:** ai được xem kho tài liệu chung; lưu file tài liệu ở đâu; model cho embedding. Model chat hiện dùng `gemini-3.5-flash-lite` (xem `docs/DECISIONS.md`).
+- **Chưa quyết, hỏi chủ repo khi làm tới:** ai được xem kho tài liệu chung; model cho embedding. File tài liệu lưu trên Cloudinary. Model chat hiện dùng `gemini-3.5-flash-lite` (xem `docs/DECISIONS.md`).
 - Ghi mọi quyết định và đánh đổi vào `docs/DECISIONS.md`.
 
 Dữ liệu seed (`backend/scripts/seed.js`) được viết sẵn các chi tiết có thể hỏi lại (link staging, giờ họp, ai phụ trách phần nào, ngân sách chuyến đi) để dùng làm bộ câu hỏi eval cho RAG; khi thêm dữ liệu seed, giữ tính chất này. Seed hiện theo bối cảnh nhóm sinh viên làm đồ án; khi thêm dữ liệu mới, viết theo bối cảnh văn phòng.

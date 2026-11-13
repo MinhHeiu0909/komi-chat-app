@@ -4,6 +4,7 @@ import { io, announceConversation } from "../socket/index.js";
 import { isValidObjectId } from "../middlewares/conversationMiddleware.js";
 import { findOrCreateDirectConversation } from "../utils/directConversation.js";
 import { ensureKomiConversation, summarizeUnread } from "../ai/komiBot.js";
+import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH, buildSearchPattern } from "../utils/messageSearch.js";
 import {
   CONVERSATION_POPULATE,
   formatConversation,
@@ -122,10 +123,12 @@ export const getMessages = async (req, res) => {
 
     let nextCursor = null;
 
+    // Lấy dư 1 tin chỉ để biết còn tin cũ hơn. Cursor là thời gian của tin cũ nhất ĐƯỢC TRẢ VỀ:
+    // trước đây dùng thời gian của tin dư (rồi bỏ tin đó), nên trang sau ($lt) không bao giờ
+    // trả tin dư đó, mỗi lần tải thêm mất 1 tin ở ranh giới trang.
     if (messages.length > limit) {
-      const nextMessage = messages[messages.length - 1];
-      nextCursor = nextMessage.createdAt.toISOString();
       messages.pop();
+      nextCursor = messages[messages.length - 1].createdAt.toISOString();
     }
 
     messages = messages.reverse();
@@ -203,6 +206,52 @@ export const summarizeUnreadMessages = async (req, res) => {
     return res.status(202).json(result);
   } catch (error) {
     console.error("Lỗi khi tóm tắt tin chưa đọc", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+export const SEARCH_PAGE_SIZE = 30;
+
+/**
+ * Tìm tin nhắn theo từ khoá trong MỘT cuộc trò chuyện (nội dung tin và tên file đính kèm),
+ * không phân biệt dấu tiếng Việt / hoa thường. Mới nhất trước; `before` để xem thêm.
+ * req.conversation đã được requireConversationMember kiểm tra.
+ */
+export const searchMessages = async (req, res) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    if (q.length < MIN_QUERY_LENGTH || q.length > MAX_QUERY_LENGTH) {
+      return res
+        .status(400)
+        .json({ message: `Từ khoá từ ${MIN_QUERY_LENGTH} đến ${MAX_QUERY_LENGTH} ký tự` });
+    }
+
+    const pattern = buildSearchPattern(q);
+    const query = {
+      conversationId: req.conversation._id,
+      $or: [{ content: { $regex: pattern, $options: "i" } }, { "file.name": { $regex: pattern, $options: "i" } }],
+    };
+
+    if (req.query.before) {
+      const before = new Date(req.query.before);
+      if (Number.isNaN(before.getTime())) {
+        return res.status(400).json({ message: "before không hợp lệ" });
+      }
+      query.createdAt = { $lt: before };
+    }
+
+    const found = await Message.find(query, { senderId: 1, content: 1, file: 1, imgUrl: 1, createdAt: 1 })
+      .sort({ createdAt: -1 })
+      .limit(SEARCH_PAGE_SIZE + 1)
+      .lean();
+
+    const hasMore = found.length > SEARCH_PAGE_SIZE;
+    const messages = found.slice(0, SEARCH_PAGE_SIZE);
+    const nextCursor = hasMore ? messages.at(-1).createdAt.toISOString() : null;
+
+    return res.status(200).json({ messages, nextCursor });
+  } catch (error) {
+    console.error("Lỗi khi tìm tin nhắn", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };

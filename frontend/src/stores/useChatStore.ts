@@ -6,7 +6,7 @@ import { chatService } from "@/services/chatService";
 import { useAuthStore } from "./useAuthStore";
 import { applyReaction } from "@/lib/reactions";
 import { toast } from "sonner";
-import { IMAGE_PREVIEW_TEXT } from "@/lib/messageImage";
+import { documentKindOf, isDocumentFile, messagePreviewText } from "@/lib/messageFile";
 import axios from "axios";
 
 type MessageEntry = ChatState["messages"][string];
@@ -19,11 +19,11 @@ const newClientId = () =>
 const isPendingFor = (m: Message, clientId?: string) =>
   Boolean(m.status && clientId && m.clientId === clientId);
 
-// Ảnh của tin đang gửi, theo clientId. Giữ File để gửi lại được khi lỗi,
-// và nhớ imgUrl đã tải lên để lần gửi lại không phải tải lần nữa.
+// Ảnh / file tài liệu của tin đang gửi, theo clientId. Giữ File để gửi lại được khi lỗi,
+// và nhớ imgUrl / fileId đã tải lên để lần gửi lại không phải tải lần nữa.
 const pendingImages = new Map<
   string,
-  { file: File; previewUrl: string; uploadedUrl?: string }
+  { file: File; previewUrl?: string; uploadedUrl?: string; uploadedFileId?: string }
 >();
 
 const releasePendingImage = (clientId: string) => {
@@ -31,7 +31,15 @@ const releasePendingImage = (clientId: string) => {
   if (!pending) return;
   pendingImages.delete(clientId);
   // đợi ảnh thật tải xong trên màn hình rồi mới thu hồi ảnh xem trước
-  window.setTimeout(() => URL.revokeObjectURL(pending.previewUrl), 30_000);
+  const { previewUrl } = pending;
+  if (previewUrl) window.setTimeout(() => URL.revokeObjectURL(previewUrl), 30_000);
+};
+
+// tải ảnh hoặc file tài liệu lên (một lần), trả về imgUrl / fileId để gửi kèm tin
+const uploadAttachment = async (attachment: File | null | undefined) => {
+  if (!attachment) return {};
+  if (isDocumentFile(attachment)) return { fileId: (await chatService.uploadFile(attachment))._id };
+  return { imgUrl: await chatService.uploadImage(attachment) };
 };
 
 // lấy câu báo lỗi của server (vd. "Ảnh tối đa 5MB") nếu có
@@ -117,12 +125,15 @@ export const useChatStore = create<ChatState>()(
         try {
           let message: Message;
 
-          // có ảnh: tải lên trước (chỉ một lần, kể cả khi gửi lại)
-          const image = pendingImages.get(clientId);
-          if (image && !image.uploadedUrl) {
-            image.uploadedUrl = await chatService.uploadImage(image.file);
+          // có ảnh / file: tải lên trước (chỉ một lần, kể cả khi gửi lại)
+          const pending = pendingImages.get(clientId);
+          if (pending && !pending.uploadedUrl && !pending.uploadedFileId) {
+            const uploaded = await uploadAttachment(pending.file);
+            pending.uploadedUrl = uploaded.imgUrl;
+            pending.uploadedFileId = uploaded.fileId;
           }
-          const imgUrl = image?.uploadedUrl;
+          const imgUrl = pending?.uploadedUrl;
+          const fileId = pending?.uploadedFileId;
 
           if (convo.type === "direct") {
             const other = convo.participants.find((p) => p._id !== user._id);
@@ -134,7 +145,8 @@ export const useChatStore = create<ChatState>()(
               imgUrl,
               conversationId,
               clientId,
-              replyToId
+              replyToId,
+              fileId
             );
           } else {
             message = await chatService.sendGroupMessage(
@@ -142,7 +154,8 @@ export const useChatStore = create<ChatState>()(
               content,
               imgUrl,
               clientId,
-              replyToId
+              replyToId,
+              fileId
             );
           }
 
@@ -172,9 +185,10 @@ export const useChatStore = create<ChatState>()(
         if (!user) return;
 
         const clientId = newClientId();
-        // ảnh hiện ngay từ máy người gửi trong lúc đang tải lên
-        const previewUrl = image ? URL.createObjectURL(image) : undefined;
-        if (image && previewUrl) pendingImages.set(clientId, { file: image, previewUrl });
+        // ảnh hiện ngay từ máy người gửi trong lúc đang tải lên; file tài liệu hiện thẻ tên file
+        const isDocument = Boolean(image && isDocumentFile(image));
+        const previewUrl = image && !isDocument ? URL.createObjectURL(image) : undefined;
+        if (image) pendingImages.set(clientId, { file: image, previewUrl });
         // chỉ trả lời được tin đã lưu (có _id thật), không phải tin "đang gửi"
         const replyTarget = replyTo && !replyTo.status ? replyTo : null;
 
@@ -187,6 +201,10 @@ export const useChatStore = create<ChatState>()(
             senderId: user._id,
             content,
             imgUrl: previewUrl,
+            ...(image &&
+              isDocument && {
+                file: { name: image.name, size: image.size, kind: documentKindOf(image) },
+              }),
             createdAt: new Date().toISOString(),
             isOwn: true,
             status: "sending",
@@ -195,9 +213,7 @@ export const useChatStore = create<ChatState>()(
               replyTo: {
                 messageId: replyTarget._id,
                 senderId: replyTarget.senderId,
-                content: (
-                  replyTarget.content || (replyTarget.imgUrl ? IMAGE_PREVIEW_TEXT : "")
-                ).slice(0, 200),
+                content: messagePreviewText(replyTarget).slice(0, 200),
               },
             }),
           },
@@ -328,11 +344,15 @@ export const useChatStore = create<ChatState>()(
 
           // chưa có conversation: server sẽ tạo và báo về qua socket
           try {
-            const imgUrl = image ? await chatService.uploadImage(image) : undefined;
+            const { imgUrl, fileId } = await uploadAttachment(image);
             const message = await chatService.sendDirectMessage(
               recipientId,
               content,
-              imgUrl
+              imgUrl,
+              undefined,
+              undefined,
+              undefined,
+              fileId
             );
             settleMessage(message);
           } catch (error) {

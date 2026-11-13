@@ -20,6 +20,20 @@ const messageSchema = new mongoose.Schema(
     imgUrl: {
       type: String,
     },
+    // File tài liệu gửi kèm (bản trích từ ChatFile để hiển thị không cần truy vấn thêm)
+    file: {
+      type: new mongoose.Schema(
+        {
+          fileId: { type: mongoose.Schema.Types.ObjectId, ref: "ChatFile", required: true },
+          url: { type: String, required: true },
+          name: { type: String, required: true },
+          size: { type: Number, required: true },
+          kind: { type: String, enum: ["pdf", "docx"], required: true },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
     // id tạm do client sinh ra, dùng để thay tin nhắn "đang gửi" bằng tin thật
     clientId: {
       type: String,
