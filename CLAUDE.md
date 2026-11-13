@@ -84,6 +84,17 @@ cd frontend && npm run build
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
 - `npm test` backend: 116/116 (2026-11-13).
 
+**Việc tiếp theo (cập nhật 2026-11-14) — đọc trước khi bắt đầu phiên mới:**
+
+1. Chủ repo push `phase-3-chat-documents` và mở PR vào `main` (6 commit, test 116/116). Hỏi PR đã merge chưa (`git fetch` rồi xem `origin/main`). CI lỗi do phiên bản Node thì sửa (`pdfjs-dist@6.4.299` cần Node ≥ 22.13).
+2. Sau khi merge: tách nhánh Giai đoạn 4 từ `main` mới nhất (`git checkout main && git pull && git checkout -b phase-4-...`, đề xuất tên cho chủ repo chọn).
+3. **Trước khi viết code Giai đoạn 4, hỏi chủ repo:**
+   - Ai được xem kho tài liệu chung (mọi người trong app, hay theo nhóm).
+   - Model embedding: tra hạn mức free tier hiện tại (không gắn thẻ), phải hiểu tiếng Việt; đề xuất 1–2 lựa chọn.
+   - Vector search chạy ở đâu: `mongo:7` trong `docker-compose.yml` **không có** Atlas Vector Search. Hướng có thể: image `mongodb/mongodb-atlas-local` khi dev, hoặc cluster Atlas free (M0). Đổi cách chạy DB của cả dự án nên phải hỏi.
+   - Phạm vi hỏi: lịch sử chat + kho chung, lọc theo quyền ngay trong truy vấn; gồm cả hỏi chéo các cuộc trò chuyện người hỏi là thành viên (đã hoãn từ Giai đoạn 3).
+4. Còn treo, làm khi chủ repo nhắc: thử PDF tiếng Việt thật (để file vào `samples/`); provider chưa đọc `finish_reason` (một lần câu trả lời bị cắt giữa chữ, chưa tái hiện được).
+
 Ghi chú vận hành:
 
 - Tài khoản demo: `an.nguyen`, `binh`, `chi`, `dung`, `hoa` / `komi123`.
