@@ -21,19 +21,17 @@ export const quotaExceededText = (limit) =>
   `Bạn đã dùng hết ${limit} lượt hỏi Komi AI hôm nay. Lượt hỏi được tính lại lúc 0h (giờ Việt Nam).`;
 
 /**
- * Lấy một lượt hỏi. Nguyên tử: chỉ tăng khi count < limit; hai request đồng thời
- * không vượt được hạn mức.
+ * Lấy một lượt trong bộ đếm theo ngày `Model` (AiUsage, DocumentUploadUsage...).
+ * Nguyên tử: chỉ tăng khi count < limit; hai request đồng thời không vượt được hạn mức.
  * Bản ghi đã đủ lượt thì điều kiện không khớp → upsert cố tạo bản ghi mới →
  * vướng unique index (userId, day) → nghĩa là đã hết lượt.
  *
  * @returns {Promise<{ ok: boolean, day: string, used?: number, limit: number }>}
  */
-export const takeQuota = async (userId, { now = new Date() } = {}) => {
+export const takeDailyCount = async (Model, userId, limit, { now = new Date() } = {}) => {
   const day = vnDay(now);
-  const limit = dailyLimit();
-
   try {
-    const usage = await AiUsage.findOneAndUpdate(
+    const usage = await Model.findOneAndUpdate(
       { userId, day, count: { $lt: limit } },
       { $inc: { count: 1 }, $setOnInsert: { createdAt: now } },
       { upsert: true, returnDocument: "after" },
@@ -45,6 +43,11 @@ export const takeQuota = async (userId, { now = new Date() } = {}) => {
   }
 };
 
+export const refundDailyCount = (Model, userId, day) =>
+  Model.updateOne({ userId, day, count: { $gt: 0 } }, { $inc: { count: -1 } });
+
+/** Lấy một lượt hỏi Komi AI (AI_DAILY_LIMIT lượt/ngày). */
+export const takeQuota = (userId, { now = new Date() } = {}) => takeDailyCount(AiUsage, userId, dailyLimit(), { now });
+
 // Trả lại lượt khi lỗi không phải do người hỏi (nhà cung cấp lỗi, hết hạn mức chung...)
-export const refundQuota = (userId, day) =>
-  AiUsage.updateOne({ userId, day, count: { $gt: 0 } }, { $inc: { count: -1 } });
+export const refundQuota = (userId, day) => refundDailyCount(AiUsage, userId, day);

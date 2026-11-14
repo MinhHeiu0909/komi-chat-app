@@ -16,6 +16,7 @@ const knowledgeChunkSchema = new mongoose.Schema(
   {
     // khoá chống tạo trùng khi worker chạy lại:
     //   msg:<conversationId>:<id tin đầu>   |   file:<conversationId>:<fileId>:<số thứ tự>
+    //   doc:<sharedDocumentId>:<số thứ tự> (kho chung)
     key: { type: String, required: true, unique: true },
     scope: { type: String, enum: Object.values(CHUNK_SCOPE), required: true },
     conversationId: { type: mongoose.Schema.Types.ObjectId, ref: "Conversation", default: null, index: true },
@@ -30,8 +31,9 @@ const knowledgeChunkSchema = new mongoose.Schema(
     endMessageId: { type: mongoose.Schema.Types.ObjectId, ref: "Message" },
     startAt: Date,
     endAt: Date,
-    // Ghi nguồn — đoạn file: file, trang (PDF; .docx không có trang), thứ tự đoạn trong file
-    fileId: { type: mongoose.Schema.Types.ObjectId, ref: "ChatFile" },
+    // Ghi nguồn — đoạn file: file, trang (PDF; .docx không có trang), thứ tự đoạn trong file.
+    // fileId là ChatFile (sourceType chatFile) hoặc SharedDocument (sourceType sharedDoc)
+    fileId: { type: mongoose.Schema.Types.ObjectId },
     fileName: String,
     page: Number,
     seq: Number,
@@ -45,6 +47,8 @@ const knowledgeChunkSchema = new mongoose.Schema(
 
 // worker tìm đoạn chờ embedding theo thứ tự tạo
 knowledgeChunkSchema.index({ embeddedAt: 1, createdAt: 1 });
+// đếm / xoá đoạn của một tài liệu
+knowledgeChunkSchema.index({ sourceType: 1, fileId: 1 });
 
 const KnowledgeChunk = mongoose.model("KnowledgeChunk", knowledgeChunkSchema);
 export default KnowledgeChunk;

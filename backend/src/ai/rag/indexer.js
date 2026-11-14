@@ -3,21 +3,31 @@ import Conversation from "../../models/Conversation.js";
 import KnowledgeChunk, { CHUNK_SCOPE, CHUNK_SOURCE } from "../../models/KnowledgeChunk.js";
 import Message from "../../models/Message.js";
 import RagCursor from "../../models/RagCursor.js";
+import SharedDocument from "../../models/SharedDocument.js";
 import User from "../../models/User.js";
 import { embeddings } from "../embeddings.js";
 import { LLM_ERROR } from "../errors.js";
-import { buildMessageWindows, chunkFilePages, embeddingInput, formatMessageLine } from "./chunking.js";
+import {
+  buildMessageWindows,
+  chunkFilePages,
+  embeddingInput,
+  formatMessageLine,
+  limitPagesForIndex,
+} from "./chunking.js";
 
 /**
  * Worker RAG chạy nền trong backend (không Redis/hàng đợi), hai pha mỗi lượt:
  *  1. Tạo đoạn (không gọi API): đọc tin mới của từng conversation từ RagCursor, gom thành đoạn,
  *     chia file được gửi kèm. Bỏ tin của bot và chữ trong chat riêng với Komi (file vẫn lấy).
+ *     Chia các tài liệu kho chung chưa chia (50.000 ký tự đầu, scope "shared").
  *  2. Embedding: lấy các đoạn chưa có vector, tối đa theo hạn mức còn lại của phút này.
  * Chạy lại bao nhiêu lần cũng không tạo trùng (khoá `key` của KnowledgeChunk).
  */
 
 // số tin đọc mỗi lần cho một conversation
 export const MESSAGE_BATCH = 500;
+// số tài liệu kho chung chia mỗi lượt
+export const SHARED_DOC_BATCH = 20;
 // hạn mức free của gemini-embedding-2 là 100 đoạn/phút; worker dùng 60, chừa 40 cho embedding câu hỏi
 export const EMBEDDINGS_PER_MINUTE = 60;
 export const INDEX_INTERVAL_MS = 30_000;
@@ -171,6 +181,39 @@ export const chunkPending = async ({ now = new Date() } = {}) => {
   return created;
 };
 
+/** Pha 1 cho kho tài liệu chung: chia các tài liệu chưa chia. Trả số đoạn mới tạo. */
+export const chunkSharedDocuments = async ({ now = new Date() } = {}) => {
+  const docs = await SharedDocument.find({ chunkedAt: null }, { name: 1, textStatus: 1, pages: 1 })
+    .sort({ createdAt: 1 })
+    .limit(SHARED_DOC_BATCH)
+    .lean();
+
+  let created = 0;
+  for (const doc of docs) {
+    const pieces = doc.textStatus === "ok" ? chunkFilePages(limitPagesForIndex(doc.pages).pages) : [];
+    created += await insertChunks(
+      pieces.map((piece, seq) => ({
+        key: `doc:${doc._id}:${seq}`,
+        scope: CHUNK_SCOPE.SHARED,
+        conversationId: null,
+        sourceType: CHUNK_SOURCE.SHARED_DOC,
+        header: `Tài liệu chung "${doc.name}"${piece.page ? `, trang ${piece.page}` : ""}`,
+        text: piece.text,
+        fileId: doc._id,
+        fileName: doc.name,
+        page: piece.page ?? undefined,
+        seq,
+      })),
+    );
+    const marked = await SharedDocument.updateOne({ _id: doc._id }, { $set: { chunkedAt: now } });
+    // tài liệu vừa bị xoá trong lúc chia: dọn các đoạn vừa tạo
+    if (marked.matchedCount === 0) {
+      await KnowledgeChunk.deleteMany({ sourceType: CHUNK_SOURCE.SHARED_DOC, fileId: doc._id });
+    }
+  }
+  return created;
+};
+
 /** Pha 2: embedding tối đa `limit` đoạn đang chờ (cũ trước). Lỗi của nhà cung cấp ném ra cho bên gọi. */
 export const embedPending = async ({ limit, signal } = {}) => {
   if (!(limit > 0)) return 0;
@@ -198,7 +241,7 @@ export const countPending = () => KnowledgeChunk.countDocuments({ embeddedAt: nu
  */
 export const runIndexerOnce = async ({ now = new Date(), maxEmbeddings = EMBEDDINGS_PER_MINUTE, signal } = {}) => {
   if (!embeddings.isReady()) return { chunksCreated: 0, embedded: 0 };
-  const chunksCreated = await chunkPending({ now });
+  const chunksCreated = (await chunkPending({ now })) + (await chunkSharedDocuments({ now }));
   const embedded = await embedPending({ limit: maxEmbeddings, signal });
   return { chunksCreated, embedded };
 };

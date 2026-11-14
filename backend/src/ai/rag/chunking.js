@@ -133,5 +133,27 @@ export const splitText = (text, size = FILE_CHUNK_CHARS, overlap = FILE_CHUNK_OV
 export const chunkFilePages = (pages) =>
   (pages ?? []).flatMap((p) => splitText(p.text).map((text) => ({ page: p.number ?? null, text })));
 
+// Kho tài liệu chung: chỉ index chừng này ký tự đầu mỗi tài liệu (chủ repo chọn, xem docs/DECISIONS.md)
+export const MAX_SHARED_INDEX_CHARS = 50_000;
+
+/**
+ * Giữ các trang đầu cho tới khi đủ maxChars ký tự (trang cuối có thể bị cắt dở).
+ * @returns {{ pages: { number?: number, text: string }[], truncated: boolean, lastPage: number | null }}
+ */
+export const limitPagesForIndex = (pages, maxChars = MAX_SHARED_INDEX_CHARS) => {
+  const kept = [];
+  let total = 0;
+  for (const page of pages ?? []) {
+    const text = page.text ?? "";
+    const room = maxChars - total;
+    if (room <= 0 && text.trim()) return { pages: kept, truncated: true, lastPage: kept.at(-1)?.number ?? null };
+    const piece = text.length > room ? text.slice(0, room) : text;
+    kept.push({ ...page, text: piece });
+    total += piece.length;
+    if (piece.length < text.length) return { pages: kept, truncated: true, lastPage: page.number ?? null };
+  }
+  return { pages: kept, truncated: false, lastPage: kept.at(-1)?.number ?? null };
+};
+
 /** Chữ đưa vào embedding: dòng nguồn + nội dung */
 export const embeddingInput = (chunk) => (chunk.header ? `${chunk.header}\n${chunk.text}` : chunk.text);

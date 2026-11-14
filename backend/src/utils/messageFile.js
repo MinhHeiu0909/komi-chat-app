@@ -1,9 +1,12 @@
 import crypto from "node:crypto";
 import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
 import { uploadRawFromBuffer } from "../middlewares/uploadMiddleware.js";
 
 export const MAX_MESSAGE_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 export const MESSAGE_FILE_FOLDER = "komi_chat/files";
+// tài liệu của kho chung (Giai đoạn 4)
+export const SHARED_FILE_FOLDER = "komi_chat/shared";
 export const MAX_FILE_NAME_LENGTH = 150;
 
 // Chữ hiện ở danh sách chat / trích dẫn khi tin chỉ có file
@@ -67,6 +70,16 @@ export const fileStorage = {
       folder: `${MESSAGE_FILE_FOLDER}/${userId}`,
       public_id: `${crypto.randomUUID()}.${kind}`,
     }),
+
+  // tài liệu kho chung: cùng cách lưu, khác thư mục
+  uploadShared: (buffer, userId, kind) =>
+    uploadRawFromBuffer(buffer, {
+      folder: `${SHARED_FILE_FOLDER}/${userId}`,
+      public_id: `${crypto.randomUUID()}.${kind}`,
+    }),
+
+  // xoá file "raw" khỏi Cloudinary (khi xoá tài liệu kho chung)
+  destroy: (publicId) => cloudinary.uploader.destroy(publicId, { resource_type: "raw", invalidate: true }),
 };
 
 const multerUpload = multer({

@@ -19,6 +19,8 @@ import Message from "../src/models/Message.js";
 import Session from "../src/models/Session.js";
 import KnowledgeChunk from "../src/models/KnowledgeChunk.js";
 import RagCursor from "../src/models/RagCursor.js";
+import SharedDocument from "../src/models/SharedDocument.js";
+import DocumentUploadUsage from "../src/models/DocumentUploadUsage.js";
 
 const DEMO_PASSWORD = "komi123";
 const reset = process.argv.includes("--reset");
@@ -145,6 +147,9 @@ const run = async () => {
       // đoạn RAG của dữ liệu cũ (vector index vẫn giữ)
       KnowledgeChunk.deleteMany({}),
       RagCursor.deleteMany({}),
+      // tài liệu chung của user cũ (file trên Cloudinary không bị xoá, giống file trong chat)
+      SharedDocument.deleteMany({}),
+      DocumentUploadUsage.deleteMany({}),
     ]);
     console.log("Đã xoá dữ liệu cũ.");
   } else if (await User.exists({ username: { $in: USERS.map((u) => u.username) } })) {

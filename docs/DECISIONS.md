@@ -110,6 +110,19 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Đánh đổi:** tin vừa gửi chưa tìm chéo được ngay (tới 10 phút); cuộc trò chuyện hiện tại vẫn có 20 tin gần nhất trong prompt. Nguồn của tin nhắn chỉ trỏ tới đầu đoạn, không đúng từng tin. File gửi nhiều nơi tốn embedding nhiều lần.
 - **Xem lại khi:** chạy nhiều backend cùng lúc (cần khoá để hai worker không làm trùng), hoặc bộ eval cho thấy cỡ đoạn chưa hợp.
 
+## 2026-11-14 — Giai đoạn 4, bước 4: kho tài liệu chung
+
+- **Chọn (chủ repo duyệt):**
+  - **Model mới `SharedDocument`** (giống `ChatFile`, thêm `chunkedAt`), không đụng `ChatFile`. File lưu Cloudinary `raw`, thư mục `komi_chat/shared`; nhận PDF / `.docx`, tối đa 10 MB như chat.
+  - **API `/api/documents`** cho mọi người đã đăng nhập: `GET` danh sách (mới nhất trước, kèm người tải, trạng thái index), `POST` tải lên, `DELETE /:id` chỉ người tải lên (người khác 403: kho chung ai cũng thấy nên 404 không che giấu được gì). Xoá thì xoá cả file trên Cloudinary và các đoạn RAG.
+  - **Index tối đa 50.000 ký tự mỗi tài liệu** (~20–25 trang, ~60 đoạn, khoảng 1 phút với 60 đoạn/phút), bằng giới hạn hỏi đáp trên file chat. Dài hơn thì vẫn lưu file nhưng chỉ index phần đầu, giao diện ghi rõ.
+  - **Tối đa 10 tài liệu chung mỗi người mỗi ngày** (đổi bằng biến môi trường), đếm trong MongoDB, tính lại lúc 0h giờ Việt Nam như hạn mức hỏi AI.
+  - **Worker:** pha 1 thêm việc chia tài liệu chung chưa chia (`scope: "shared"`, `conversationId: null`); pha embedding và `searchKnowledge` dùng lại.
+  - **Giao diện:** trang riêng `/documents`, mục "Tài liệu chung" trên sidebar; khung bên phải hiện danh sách thay cho khung chat. Nút tải lên, xoá tài liệu của mình, nhãn trạng thái (đang xử lý x/y đoạn, sẵn sàng, không đọc được chữ); tự làm mới mỗi 5 giây khi còn tài liệu đang xử lý.
+- **Vì sao:** chủ repo chọn giới hạn 50.000 ký tự để an toàn cho hạn mức embedding (hạn mức ngày chưa biết); giới hạn số lần tải lên để một người không dùng hết hạn mức của cả app.
+- **Đánh đổi:** tài liệu dài hơn ~25 trang chỉ tìm được phần đầu. Ai cũng xem và tải được mọi tài liệu chung.
+- **Xem lại khi:** biết hạn mức embedding theo ngày (có thể nới giới hạn ký tự), hoặc cần quyền theo nhóm.
+
 ## Chưa quyết
 
 - (Chưa có.)

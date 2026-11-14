@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { formatOnlineTime, cn } from "@/lib/utils";
+import { useLocation, useNavigate } from "react-router";
 
 interface ChatCardProps {
   convoId: string;
@@ -25,6 +26,15 @@ const ChatCard = ({
   subtitle,
   action,
 }: ChatCardProps) => {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  // đang ở trang khác (vd. Tài liệu chung) thì chọn cuộc trò chuyện xong quay về trang chat
+  const handleClick = () => {
+    onSelect(convoId);
+    if (pathname !== "/") navigate("/");
+  };
+
   return (
     <Card
       key={convoId}
@@ -33,7 +43,7 @@ const ChatCard = ({
         isActive &&
           "ring-2 ring-primary/50 bg-gradient-to from-primary-glow/10 to-primary-foreground"
       )}
-      onClick={() => onSelect(convoId)}
+      onClick={handleClick}
     >
       <div className="flex items-center gap-3">
         <div className="relative">{leftSection}</div>
