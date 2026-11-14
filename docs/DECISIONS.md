@@ -81,7 +81,20 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Chưa hỏi chéo cuộc trò chuyện (2026-11-13, chủ repo chọn):** Komi AI chỉ đọc file của chính cuộc trò chuyện nơi được hỏi; file nằm trong chat 1-1 với người khác thì phải tải lại vào chat với Komi. Không thêm nút "Hỏi Komi về file này". Hỏi trên mọi cuộc trò chuyện người hỏi là thành viên để dành cho Giai đoạn 4 (RAG, lọc theo quyền trong truy vấn).
 - **Xem lại khi:** làm kho tài liệu chung (Giai đoạn 4).
 
+## 2026-11-14 — Giai đoạn 4: kho tài liệu chung và RAG
+
+- **Chọn (chủ repo duyệt):**
+  - **Kho tài liệu chung: mọi người trong app xem được.** Coi cả app là một công ty. Ai cũng tải lên được, chỉ người tải lên xoá được. Lưu sẵn trường phạm vi trên từng tài liệu để sau này thêm quyền theo nhóm mà không đổi schema.
+  - **Model embedding: `gemini-embedding-2`**, dùng lại key Gemini (Google AI Studio, free tier, không gắn thẻ), gọi qua endpoint OpenAI-compatible (`/embeddings`), cấu hình bằng biến môi trường riêng cho embedding. Test dùng embedding giả (không gọi mạng).
+  - **Vector search: `mongodb/mongodb-atlas-local` khi dev** (có `mongod` + `mongot`, chạy `$vectorSearch` mà không cần tài khoản cloud), thay `mongo:7` trong `docker-compose.yml`. Test vẫn dùng `mongodb-memory-server`, kèm bản tìm kiếm giả tính cosine trong JS. Deploy ở Giai đoạn 5 dùng Atlas M0.
+  - **Phạm vi hỏi:** hỏi `@komi` trong nhóm thì chỉ tìm trong nhóm đó + kho chung; chat riêng với Komi thì tìm trên mọi cuộc trò chuyện người hỏi là thành viên + kho chung. Lọc theo quyền ngay trong truy vấn vector (filter `conversationId`).
+- **Vì sao:** một key cho cả chat và embedding, không thêm dependency hay dịch vụ mới; Atlas Local cho đúng API của Atlas Vector Search nên lên Atlas M0 không phải sửa code. Câu trả lời trong nhóm thì cả nhóm đọc được, nên không lấy nội dung từ chat riêng của người hỏi.
+- **Đánh đổi:**
+  - Google không công bố hạn mức free cố định cho embedding (nguồn ngoài nói khoảng 1.000 request/ngày, theo project); phải xem trong AI Studio và gom nhiều đoạn vào một request. Dữ liệu gửi qua free tier có thể bị dùng để huấn luyện: chỉ dùng dữ liệu mẫu.
+  - Trang tài liệu của Google không ghi rõ tiếng Việt (chỉ ghi "hơn 100 ngôn ngữ"); bộ eval tiếng Việt sẽ kiểm chứng.
+  - Đổi image DB: dữ liệu trong volume `mongo-data` cũ cần seed lại; test không chạy được `$vectorSearch` thật.
+- **Xem lại khi:** chạm hạn mức embedding (cân nhắc model chạy ngay trong Node), hoặc cần quyền theo nhóm cho kho chung.
+
 ## Chưa quyết
 
-- Ai được xem kho tài liệu chung (mọi người trong app, hay theo nhóm)?
-- Model cho embedding (Giai đoạn 4).
+- (Chưa có.)
