@@ -28,7 +28,7 @@ const timeFormat = new Intl.DateTimeFormat("vi-VN", {
 });
 
 // "dd/MM/yyyy HH:mm" giờ Việt Nam (tự ghép, vì định dạng sẵn của vi-VN đặt giờ trước ngày)
-const formatTime = (date) => {
+export const formatTime = (date) => {
   const p = Object.fromEntries(timeFormat.formatToParts(date).map((x) => [x.type, x.value]));
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
 };

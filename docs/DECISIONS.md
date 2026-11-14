@@ -123,6 +123,20 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Đánh đổi:** tài liệu dài hơn ~25 trang chỉ tìm được phần đầu. Ai cũng xem và tải được mọi tài liệu chung.
 - **Xem lại khi:** biết hạn mức embedding theo ngày (có thể nới giới hạn ký tự), hoặc cần quyền theo nhóm.
 
+## 2026-11-14 — Giai đoạn 4, bước 5: nối RAG vào Komi AI
+
+- **Chọn (chủ repo duyệt):**
+  - **Tra cứu ở mọi câu hỏi** (không dùng tool calling): mỗi câu hỏi thêm 1 embedding (~1 giây), không thêm lượt gọi LLM. Câu hỏi không liên quan thì bot bỏ qua đoạn tìm được theo hướng dẫn trong prompt.
+  - **Phạm vi** như đã chốt: `@komi` trong nhóm → nhóm đó + kho chung; chat riêng với Komi → mọi cuộc trò chuyện người hỏi là thành viên + kho chung (`searchKnowledge`).
+  - **Câu hỏi nối tiếp:** tìm bằng câu hỏi hiện tại ghép với câu hỏi trước đó của cùng người trong cuộc trò chuyện (bỏ `@komi`); không nhờ LLM viết lại câu hỏi.
+  - **File của Giai đoạn 3:** giữ toàn văn **1 file gần nhất** của cuộc trò chuyện (≤ 50.000 ký tự, để "tóm tắt file vừa gửi" vẫn đọc được cả file); bỏ giới hạn "3 file gần nhất", các file khác đi qua RAG.
+  - **Đưa vào prompt:** 6 đoạn điểm cao nhất, tổng tối đa khoảng 8.000 ký tự, trong một khối dữ liệu ở vai người dùng (không nằm trong system prompt), mỗi đoạn kèm nhãn nguồn sẵn (tin nhắn: tên cuộc trò chuyện + thời gian; file: tên file + trang; kho chung: tên tài liệu + trang).
+  - **Ghi nguồn bằng chữ thường** trong câu trả lời, vd. `(Nguồn: Nhóm "Đồ án Komi", 05/11/2026 09:00)`; không sửa frontend.
+  - **Lỗi tra cứu** (embedding tắt, 429, lỗi khác): vẫn trả lời dựa trên lịch sử chat; khi tra cứu lỗi (không phải khi tắt) thì kèm dòng "_Chưa tra cứu được tài liệu lúc này_". Hạn mức hỏi AI vẫn tính 1 lượt.
+- **Vì sao:** `gemini-3.5-flash-lite` mất ~15 giây mỗi lượt gọi; tool calling hay viết lại câu hỏi bằng LLM sẽ gấp đôi thời gian chờ và hạn mức. Giữ toàn văn file gần nhất để không mất khả năng tóm tắt cả file của Giai đoạn 3.
+- **Đánh đổi:** câu hỏi chào hỏi cũng tốn 1 embedding; ghép câu hỏi trước đôi khi kéo theo chủ đề cũ; nguồn chưa bấm được.
+- **Xem lại khi:** bộ eval (bước 6) cho thấy cần đổi k / cỡ đoạn / cách ghép câu hỏi; chủ repo muốn nguồn bấm được.
+
 ## Chưa quyết
 
 - (Chưa có.)
