@@ -903,13 +903,14 @@ describe("tra cứu (RAG) khi trả lời", () => {
     assert.doesNotMatch(text, /SECRET-PAY|Luong thang 13 cua phong luong/);
   });
 
-  ragTest("câu hỏi nối tiếp: tìm bằng câu hỏi hiện tại ghép câu trước của cùng người, bỏ @komi", async () => {
+  ragTest("câu tìm chỉ là câu hỏi hiện tại (bỏ @komi), không ghép tin trước của người hỏi", async () => {
     const t = new Date(Date.now() + 60 * 60 * 1000); // mới hơn mọi tin của các test trước
     await models.Message.create({ conversationId: team._id, senderId: A._id, content: "@komi link hop giao ban?", createdAt: new Date(t - 2000) });
     await models.Message.create({ conversationId: team._id, senderId: B._id, content: "tin cua nguoi khac", createdAt: new Date(t - 1000) });
     const trigger = { senderId: A._id, content: "@komi  con   phong nao?", createdAt: t };
-    assert.equal(await buildRetrievalQuery({ conversationId: team._id, trigger }), "link hop giao ban?\ncon phong nao?");
-    assert.equal(await buildRetrievalQuery({ conversationId: team._id, trigger: { ...trigger, content: "@komi" } }), "");
+    // bộ eval cho thấy ghép tin trước (thường là chat không liên quan) làm tìm kém đi
+    assert.equal(buildRetrievalQuery({ trigger }), "con phong nao?");
+    assert.equal(buildRetrievalQuery({ trigger: { ...trigger, content: "@komi" } }), "");
   });
 
   ragTest("tra cứu lỗi (vd. hết hạn mức embedding): vẫn trả lời, kèm ghi chú; không có khối tra cứu", async () => {

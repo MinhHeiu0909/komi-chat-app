@@ -85,7 +85,7 @@ const chunkFileFor = async (conversation, fileId, label) => {
 };
 
 /** Pha 1 cho một conversation. Trả số đoạn mới tạo. */
-const chunkConversation = async (conversation, { now, botIds }) => {
+const chunkConversation = async (conversation, { now, botIds, windowOptions }) => {
   const conversationId = conversation._id;
   const isKomiChat =
     conversation.type === "direct" && conversation.participants.some((p) => botIds.has(idOf(p.userId)));
@@ -132,7 +132,7 @@ const chunkConversation = async (conversation, { now, botIds }) => {
 
     // lô đầy thì còn tin phía sau: không đóng đoạn cuối vì "im lặng" (tin tiếp theo có thể nối vào)
     const full = messages.length === MESSAGE_BATCH;
-    const { windows, consumed } = buildMessageWindows(items, full ? new Date(0) : now);
+    const { windows, consumed } = buildMessageWindows(items, full ? new Date(0) : now, windowOptions);
 
     created += await insertChunks(
       windows.map((w) => ({
@@ -162,8 +162,11 @@ const chunkConversation = async (conversation, { now, botIds }) => {
   }
 };
 
-/** Pha 1 cho mọi conversation có tin mới hơn cursor. */
-export const chunkPending = async ({ now = new Date() } = {}) => {
+/**
+ * Pha 1 cho mọi conversation có tin mới hơn cursor.
+ * windowOptions: ghi đè thông số gom tin (vd. { maxMessages: 5 }), chỉ dùng cho bộ eval.
+ */
+export const chunkPending = async ({ now = new Date(), windowOptions } = {}) => {
   const botIds = new Set((await User.find({ isBot: true }, { _id: 1 }).lean()).map(idOf));
   const conversations = await Conversation.find(
     { lastMessageAt: { $ne: null } },
@@ -176,7 +179,7 @@ export const chunkPending = async ({ now = new Date() } = {}) => {
   for (const conversation of conversations) {
     const at = cursorAt.get(idOf(conversation));
     if (at && at >= conversation.lastMessageAt) continue; // đã đọc hết
-    created += await chunkConversation(conversation, { now, botIds });
+    created += await chunkConversation(conversation, { now, botIds, windowOptions });
   }
   return created;
 };
@@ -239,9 +242,14 @@ export const countPending = () => KnowledgeChunk.countDocuments({ embeddedAt: nu
  * Một lượt của worker. Không làm gì khi embedding đang tắt.
  * @returns {Promise<{ chunksCreated: number, embedded: number }>}
  */
-export const runIndexerOnce = async ({ now = new Date(), maxEmbeddings = EMBEDDINGS_PER_MINUTE, signal } = {}) => {
+export const runIndexerOnce = async ({
+  now = new Date(),
+  maxEmbeddings = EMBEDDINGS_PER_MINUTE,
+  signal,
+  windowOptions,
+} = {}) => {
   if (!embeddings.isReady()) return { chunksCreated: 0, embedded: 0 };
-  const chunksCreated = (await chunkPending({ now })) + (await chunkSharedDocuments({ now }));
+  const chunksCreated = (await chunkPending({ now, windowOptions })) + (await chunkSharedDocuments({ now }));
   const embedded = await embedPending({ limit: maxEmbeddings, signal });
   return { chunksCreated, embedded };
 };

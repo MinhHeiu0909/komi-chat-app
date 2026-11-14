@@ -275,6 +275,13 @@ describe("worker tạo index", () => {
     assert.equal(await countPending(), 0);
   });
 
+  test("đổi cỡ đoạn qua windowOptions (dùng cho bộ eval)", async () => {
+    const group = await makeGroup("Nhóm", [A, B]);
+    for (let i = 0; i < 12; i++) await send(group, A, i, `tin ${i}`);
+    const { chunksCreated } = await runIndexerOnce({ now: LATER, maxEmbeddings: 0, windowOptions: { maxMessages: 5 } });
+    assert.equal(chunksCreated, 3); // 5 + 5 + 2
+  });
+
   test("hơn 500 tin vẫn đọc hết qua nhiều lô", async () => {
     const group = await makeGroup("Nhóm", [A, B]);
     const docs = Array.from({ length: 1205 }, (_, i) => ({

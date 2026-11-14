@@ -133,6 +133,14 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Test: sửa 2 test của Giai đoạn 3 theo luật 1 file; 5 test mới trong `komiBot.test.js` (nhóm chỉ tra cứu nhóm + kho chung, không lấy chat riêng của người hỏi; chat riêng với Komi tra cứu mọi cuộc trò chuyện của người hỏi, không lấy của người khác; ghép câu hỏi nối tiếp; tra cứu lỗi vẫn trả lời kèm ghi chú; embedding tắt như cũ). `npm test` backend 175/175.
   - **Đã thử với Gemini thật** trên dữ liệu seed (prompt dựng bằng `buildKomiPrompt`, câu hỏi lưu tạm rồi xoá): "@komi link bản staging ở đâu?" → đúng link, `(Nguồn: Nhóm "Đồ án Komi", 05/11/2026 01:56)`; "@komi ai phụ trách phần socket?" → "Nguyễn Văn An", đúng nguồn (đoạn đúng lên hạng 1 nhờ ghép câu hỏi); hỏi trong chat riêng với Komi "Ngân sách đi Đà Lạt mỗi người bao nhiêu?" → "khoảng 2 triệu đồng", nguồn nhóm "Hội đi Đà Lạt". Mỗi câu 1–2 giây (`gemini-3.5-flash-lite`, nhanh hơn nhiều so với 15–20 giây đo ngày 2026-11-13).
   - Chưa thử: trên giao diện (streaming, dòng ghi chú khi tra cứu lỗi); file trong chat cũ hơn file gần nhất được tìm qua RAG (đã có test ở tầng tìm kiếm).
+- **Việc 6 — bộ eval tìm kiếm (2026-11-14):** thiết kế trong `docs/DECISIONS.md` (mục "bước 6"), hướng dẫn chạy và bảng kết quả ở `eval/README.md`.
+  - `eval/data/corpus.json` (bối cảnh văn phòng: 6 người, 5 nhóm + 3 chat 1-1, 84 tin, 3 tài liệu kho chung) và `eval/data/questions.json` (41 câu cần tìm đúng: tin nhắn, viết khác chữ, câu nối tiếp, tìm chéo, tài liệu chung; 6 câu kiểm tra rò rỉ). Đã kiểm tra bằng script: mỗi chuỗi bằng chứng xuất hiện đúng một nơi, người hỏi trong nhóm là thành viên, câu rò rỉ đúng là không được phép thấy nguồn.
+  - `backend/scripts/evalLoad.js` (nạp vào DB `komi_eval*`, chỉ chấp nhận tên có tiền tố này, chạy worker thật để tạo đoạn + embedding), `evalRun.js` (lưu tạm câu hỏi như app thật, gọi `buildRetrievalQuery` + `searchKnowledge`, ghi `eval/results/<tên>.json`), `evalCommon.js`; `npm run eval:load`, `npm run eval:run`. Worker nhận `windowOptions` để đổi cỡ đoạn (có test).
+  - `eval/metrics.py` (thư viện chuẩn, không gọi mạng): recall@1/3/5/6, MRR, recall theo loại câu, số câu rò rỉ (có rò rỉ thì trả mã lỗi 2), xuất `eval/results/summary.md`.
+  - Chạy thử cả quy trình bằng embedding giả trước (DB `komi_eval_fake`, đã xoá), rồi đo thật bằng `gemini-embedding-2`.
+  - **Kết quả:** cấu hình hiện tại recall@1 88%, recall@6 100%, MRR 0,92, rò rỉ 0/6. Bản đầu của bước 5 (ghép tin trước của người hỏi vào câu tìm) chỉ đạt recall@1 51%, MRR 0,74: trong nhóm tin trước thường là chat không liên quan → **chủ repo chọn bỏ ghép**, `buildRetrievalQuery` giờ chỉ dùng câu hỏi hiện tại (đo lại ra đúng 88% / 0,92). Đoạn 5 tin: 85% / 0,91 → giữ 10 tin.
+  - Giới hạn: bộ dữ liệu nhỏ và dễ (33 đoạn), recall@6 chạm trần ở mọi cấu hình. Chưa so: tiền tố nhiệm vụ của Gemini, model embedding khác.
+  - `npm test` backend 176/176.
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 

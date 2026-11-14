@@ -138,30 +138,15 @@ export const MAX_RETRIEVAL_CHARS = 8_000;
 export const RETRIEVAL_FAILED_NOTE = "_Chưa tra cứu được tài liệu lúc này._";
 
 const MENTION = /(^|\s)@komi\b/gi;
-const cleanQuestion = (text) => (text ?? "").replace(MENTION, " ").replace(/\s+/g, " ").trim();
+export const cleanQuestion = (text) => (text ?? "").replace(MENTION, " ").replace(/\s+/g, " ").trim();
 
 /**
- * Câu dùng để tìm: câu hỏi hiện tại (bỏ @komi) ghép với tin có chữ trước đó của cùng người
- * trong cuộc trò chuyện, để câu nối tiếp ("Còn năm 2023 thì sao?") vẫn tìm đúng chủ đề.
- * Trả "" khi tin hiện tại không có chữ.
+ * Câu dùng để tìm: chỉ câu hỏi hiện tại (bỏ @komi). Trả "" khi tin không có chữ.
+ * Không ghép tin trước đó của người hỏi: bộ eval (eval/, 2026-11-14) cho thấy trong nhóm tin trước đó
+ * thường là câu chat không liên quan, ghép vào làm recall@1 giảm từ 88% xuống 51%,
+ * còn câu nối tiếp vẫn tìm được trong 6 đoạn đầu khi không ghép.
  */
-export const buildRetrievalQuery = async ({ conversationId, trigger }) => {
-  const current = cleanQuestion(trigger?.content);
-  if (!current) return "";
-  const previous = await Message.findOne(
-    {
-      conversationId,
-      senderId: trigger.senderId,
-      createdAt: { $lt: trigger.createdAt },
-      content: { $nin: [null, ""] },
-    },
-    { content: 1 },
-  )
-    .sort({ createdAt: -1 })
-    .lean();
-  const before = cleanQuestion(previous?.content);
-  return before ? `${before}\n${current}` : current;
-};
+export const buildRetrievalQuery = ({ trigger }) => cleanQuestion(trigger?.content);
 
 /** Nhãn nguồn của một đoạn, bot chép nguyên văn vào "(Nguồn: ...)" */
 export const sourceLabel = (chunk) => {
@@ -254,7 +239,7 @@ export const buildKomiPrompt = async ({ conversation, botId, trigger }) => {
     ? await retrieveForPrompt({
         askerId: trigger.senderId,
         conversationId: conversation._id,
-        query: await buildRetrievalQuery({ conversationId: conversation._id, trigger }),
+        query: buildRetrievalQuery({ trigger }),
         excludeFileIds: fullTextFileIds,
       })
     : { block: "", status: "skipped" };

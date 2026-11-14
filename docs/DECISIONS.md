@@ -136,6 +136,21 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Vì sao:** `gemini-3.5-flash-lite` mất ~15 giây mỗi lượt gọi; tool calling hay viết lại câu hỏi bằng LLM sẽ gấp đôi thời gian chờ và hạn mức. Giữ toàn văn file gần nhất để không mất khả năng tóm tắt cả file của Giai đoạn 3.
 - **Đánh đổi:** câu hỏi chào hỏi cũng tốn 1 embedding; ghép câu hỏi trước đôi khi kéo theo chủ đề cũ; nguồn chưa bấm được.
 - **Xem lại khi:** bộ eval (bước 6) cho thấy cần đổi k / cỡ đoạn / cách ghép câu hỏi; chủ repo muốn nguồn bấm được.
+- **Sửa ngày 2026-11-14 sau eval (chủ repo chọn): bỏ ghép câu hỏi trước**, câu tìm chỉ là câu hỏi hiện tại (bỏ `@komi`). Eval: recall@1 51% → 88%, MRR 0,74 → 0,92; trong nhóm tin trước đó của người hỏi thường là chat không liên quan. Câu nối tiếp vẫn nằm trong 6 đoạn đầu khi không ghép (`eval/README.md`).
+
+## 2026-11-14 — Giai đoạn 4, bước 6: bộ eval cho tìm kiếm (RAG)
+
+- **Chọn:**
+  - **Bộ dữ liệu eval riêng**, bối cảnh văn phòng (3–4 nhóm + chat 1-1, ~120–150 tin, 2–3 tài liệu kho chung dạng chữ), nạp vào DB riêng `komi_eval` trên cùng Atlas Local; không đụng dữ liệu demo, không cần Cloudinary. Seed hiện tại (54 tin, 19 đoạn) quá nhỏ để phân biệt cấu hình.
+  - **~40 câu hỏi tiếng Việt** (Claude soạn, chủ repo duyệt): mỗi câu ghi người hỏi, nơi hỏi (nhóm / chat riêng với Komi), loại câu (tin nhắn, tài liệu chung, tìm chéo cuộc trò chuyện, câu nối tiếp, câu viết khác chữ với nguồn) và 1–2 **chuỗi bằng chứng**. Thêm vài câu **kiểm tra rò rỉ**: người hỏi không có quyền thì số đoạn lộ ra phải bằng 0.
+  - **"Tìm đúng"** = đoạn tìm được chứa chuỗi bằng chứng (chủ repo chọn): không phụ thuộc id hay cách chia đoạn, so được các cấu hình chia đoạn khác nhau.
+  - **Node tra cứu, Python tính số** (chủ repo chọn): script Node chạy đúng code thật (`buildRetrievalQuery` + `searchKnowledge`) cho từng câu, xuất JSON; script Python chỉ dùng thư viện chuẩn, đọc JSON, tính recall@1/3/5/6 và MRR (tách theo loại câu), in bảng Markdown. Python không gọi mạng.
+  - **Biến thể so sánh** (Claude chọn, chủ repo không có ưu tiên): cấu hình hiện tại; **không ghép câu hỏi trước** (chỉ tốn embedding câu hỏi); **đoạn tin 5 tin** thay vì 10 (tốn embedding lại phần tin nhắn). Để sau: tiền tố nhiệm vụ của Gemini (chỉ đúng với một model, phải sửa lớp embedding).
+  - Kết quả (JSON + bảng) lưu trong repo để đưa vào README ở Giai đoạn 5. Không chạy trong CI (cần Gemini thật).
+- **Vì sao:** đo đúng code đang chạy thay vì một bản viết lại; chuỗi bằng chứng giữ bộ câu hỏi dùng được khi đổi cách chia đoạn.
+- **Đánh đổi:** chuỗi bằng chứng có thể khớp nhầm nếu xuất hiện ở nhiều nơi (soạn dữ liệu để mỗi chuỗi là duy nhất). Dữ liệu tự soạn, nhỏ: số liệu chỉ để so cấu hình, không đại diện cho dữ liệu thật.
+- **Xem lại khi:** có dữ liệu dùng thử thật; muốn so model embedding khác.
+- **Kết quả (2026-11-14):** bộ dữ liệu 84 tin (ít hơn dự kiến 120–150; chủ repo chọn đo luôn), 33 đoạn. Cấu hình hiện tại: recall@1 88%, recall@6 100%, MRR 0,92, rò rỉ 0/6. Ghép câu hỏi trước: recall@1 51% → đã bỏ (xem mục bước 5). Đoạn 5 tin: 85% / 0,91 → giữ 10 tin. recall@6 chạm trần ở mọi cấu hình: bộ dữ liệu dễ, cần dữ liệu khó hơn nếu muốn so tiếp (vd. tiền tố nhiệm vụ Gemini).
 
 ## Chưa quyết
 
