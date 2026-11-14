@@ -62,7 +62,7 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
 - **Thử với Gemini thật (2026-11-13):** key free tier của chủ repo gọi được API (liệt kê 63 model). `gemini-3.8-flash` mất hơn 60 giây → chọn `gemini-3.5-flash-lite` (khoảng 17,5 giây tới chữ đầu tiên). Chủ repo chạy app với `npm run dev` + MongoDB qua `docker compose up -d mongo` và xác nhận Komi AI hoạt động. Chi tiết ở `docs/DECISIONS.md`.
 - **Giai đoạn 2 xong:** `npm test` backend 84/84, `npm run build` frontend qua. Còn chủ repo push nhánh và mở PR vào `main`.
 
-**Giai đoạn 3 — Tài liệu trong chat: đã xong** (nhánh `phase-3-chat-documents`, tách từ `main` sau PR #3; chờ chủ repo push và mở PR)
+**Giai đoạn 3 — Tài liệu trong chat: đã xong** (nhánh `phase-3-chat-documents`, tách từ `main` sau PR #3; PR #4 đã merge vào `main`)
 - Quyết định đã chốt (Cloudinary, PDF/.docx ≤ 10MB, tối đa ~50.000 ký tự đưa vào prompt, `pdfjs-dist` + `mammoth`): `docs/DECISIONS.md`.
 - **Việc 1 — gửi file PDF/Word trong chat (2026-11-13):**
   - Model mới `ChatFile` (`uploaderId`, `url`, `publicId`, `name`, `size`, `kind`); `Message.file` là bản trích `{ fileId, url, name, size, kind }`. Không đổi dữ liệu cũ.
@@ -96,6 +96,12 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Chạy lại đúng chuỗi câu hỏi trong ảnh của chủ repo với Gemini thật: câu tiếng Anh → tiếng Anh, câu tiếng Việt (kể cả "Còn năm 2023 thì sao") → tiếng Việt; nguồn và số trang đúng; câu kiến thức chung trả lời kèm ghi chú. `npm test` backend 116/116.
   - Một lần câu trả lời bị cắt giữa chữ; 3 lần chạy lại cùng prompt (gọi thẳng API và qua `llm.chat`) đều đủ, `finish_reason: stop`. Chưa rõ nguyên nhân; provider hiện chưa đọc `finish_reason`.
 - **Giai đoạn 3 xong (2026-11-14):** chủ repo thử trên giao diện với Cloudinary và Gemini thật (file mẫu tiếng Anh `samples/football-basics.pdf`, `samples/lol-worlds.pdf`): bot đọc đúng file, ghi nguồn đúng trang, trả lời đúng ngôn ngữ. Tạm bỏ qua thử PDF tiếng Việt thật (chủ repo chọn để sau). `npm test` backend 116/116. Còn: chủ repo push nhánh và mở PR vào `main`; CI cần Node ≥ 22.13 vì `pdfjs-dist`.
+
+**Giai đoạn 4 — Kho tài liệu chung + RAG: đang làm** (nhánh `phase-4-rag`, tách từ `main` sau PR #4). Quyết định: `docs/DECISIONS.md` (2026-11-14).
+
+- **Việc 1 — MongoDB Atlas Local khi dev (2026-11-14):** `docker-compose.yml` đổi `mongo:7` sang `mongodb/mongodb-atlas-local:8.0` (mongod 8.0.34 + mongot trong một container). Ba volume mới `atlas-db`, `atlas-configdb`, `atlas-mongot` (mongot lưu index ở `/data/mongot`); volume `mongo-data` cũ để nguyên, không chuyển dữ liệu, seed lại. Backend chờ Mongo `healthy` mới chạy. Chuỗi kết nối thêm `?directConnection=true` (container là replica set một node; thiếu tham số này thì từ máy kết nối lỗi `ENOTFOUND <hostname container>`), sửa trong `docker-compose.yml` và `backend/.env.example`.
+  - **Đã thử:** `docker compose up --build` chạy, backend kết nối DB, seed được, đăng nhập API trả 200. Tạo vector index (cosine, 4 chiều, filter `conversationId`) sẵn sàng sau khoảng 1 giây; `$vectorSearch` trả đúng thứ tự, lọc `conversationId: { $in: [...] }` bỏ đúng tin nhóm khác. Khởi động lại container Mongo: index vẫn còn. Chạy từ máy (ngoài Docker): không có `directConnection=true` thì lỗi, có thì kết nối được. Collection thử đã xoá.
+  - `npm test` backend 116/116 (test vẫn dùng `mongodb-memory-server`, không đổi). Chưa thử trên giao diện sau khi đổi DB.
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 

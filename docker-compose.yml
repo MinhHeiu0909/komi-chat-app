@@ -4,24 +4,30 @@
 
 services:
   mongo:
-    image: mongo:7
+    # Atlas Local: mongod + mongot trong một container, chạy được $vectorSearch như Atlas (Giai đoạn 4).
+    # Không bật auth, chỉ dùng khi dev. Kết nối từ máy: mongodb://localhost:27017/komi?directConnection=true
+    image: mongodb/mongodb-atlas-local:8.0
     restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
-      - mongo-data:/data/db
+      - atlas-db:/data/db
+      - atlas-configdb:/data/configdb
+      # mongot lưu search/vector index ở đây; thiếu volume này thì index mất sau khi khởi động lại
+      - atlas-mongot:/data/mongot
 
   backend:
     build: ./backend
     restart: unless-stopped
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     ports:
       - "5001:5001"
     environment:
       NODE_ENV: development
       PORT: 5001
-      MONGODB_CONNECTIONSTRING: mongodb://mongo:27017/komi
+      MONGODB_CONNECTIONSTRING: mongodb://mongo:27017/komi?directConnection=true
       CLIENT_URL: http://localhost:5173
       # chỉ dùng khi chạy local; đặt biến này trong shell để ghi đè
       ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-chi-dung-cho-local-hay-doi-di}
@@ -48,4 +54,7 @@ services:
       - "5173:80"
 
 volumes:
-  mongo-data:
+  # Volume `mongo-data` cũ (mongo:7) không dùng nữa; dữ liệu cũ không chuyển sang, chạy seed lại.
+  atlas-db:
+  atlas-configdb:
+  atlas-mongot:

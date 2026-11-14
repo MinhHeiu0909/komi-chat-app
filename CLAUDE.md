@@ -88,7 +88,7 @@ cd frontend && npm run build
 
 **Việc tiếp theo (cập nhật 2026-11-14) — đọc trước khi bắt đầu phiên mới.** Thứ tự dự kiến, mỗi bước một commit, đề xuất chi tiết cho chủ repo duyệt trước khi code từng bước:
 
-1. Đổi `docker-compose.yml` sang `mongodb/mongodb-atlas-local` (thêm volume cho `/data/mongot`, chuỗi kết nối có thể cần `directConnection=true`); thử tạo vector index và chạy `$vectorSearch` được. Dữ liệu cũ cần seed lại.
+1. ~~Đổi `docker-compose.yml` sang `mongodb/mongodb-atlas-local`~~ **xong 2026-11-14**: image `:8.0`, chuỗi kết nối phải có `?directConnection=true` (cả `backend/.env`), `$vectorSearch` có filter chạy được, index còn sau khi khởi động lại.
 2. Lớp `EmbeddingProvider` (bản giả + bản OpenAI-compatible), biến môi trường riêng cho embedding, thêm vào `.env.example`. Xem hạn mức embedding thật trong AI Studio.
 3. Chia đoạn + embedding cho file trong chat và tin nhắn; collection đoạn có `conversationId` (hoặc đánh dấu kho chung) để lọc theo quyền trong `$vectorSearch`. Test dùng bản tìm kiếm giả (cosine trong JS).
 4. Kho tài liệu chung: API tải lên/xem/xoá + trang trên frontend.
@@ -99,6 +99,7 @@ Còn treo, làm khi chủ repo nhắc: thử PDF tiếng Việt thật (để fi
 
 Ghi chú vận hành:
 
+- MongoDB khi dev là `mongodb/mongodb-atlas-local:8.0` (có `$vectorSearch`). Lần đầu chạy sau khi đổi từ `mongo:7`: chạy seed lại (volume `mongo-data` cũ không dùng nữa).
 - Tài khoản demo: `an.nguyen`, `binh`, `chi`, `dung`, `hoa` / `komi123`.
 - Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore). Chạy backend trực tiếp thì dùng `backend/.env`. Cần đủ 3 biến `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`; API key phải có quyền tải lên (thiếu thì 403 "missing permissions create"); phải bật Settings → Security → "PDF and ZIP files delivery" thì link PDF mới mở được (không bật thì 401).
 - File tài liệu mẫu để thử tay đặt trong `samples/` ở gốc repo (đã gitignore, không commit).
