@@ -97,6 +97,19 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Đo thật (2026-11-14):** free tier của `gemini-embedding-2` là **100 đoạn/phút**, tính theo từng đoạn trong batch (không phải theo request); mỗi request tối đa 100 đoạn. Hệ quả cho bước chia đoạn: không embedding từng tin nhắn riêng lẻ mà gom nhiều tin liền nhau thành một đoạn, và việc embedding chạy nền phải giãn nhịp theo hạn mức.
 - **Cấu hình embedding (2026-11-14):** biến `EMBEDDING_*` riêng, mặc định 768 chiều. Không đặt `EMBEDDING_BASE_URL` thì dùng chung nhà cung cấp và key với chat; đặt riêng thì chỉ dùng `EMBEDDING_API_KEY`, không gửi key của chat sang nhà cung cấp khác. Chưa thêm tiền tố nhiệm vụ của Gemini (`task: search result | query: ...`) vì chỉ đúng với một model; để bộ eval ở bước 6 đo xem có đáng không.
 
+## 2026-11-14 — Giai đoạn 4, bước 3: chia đoạn và tạo index
+
+- **Chọn (chủ repo duyệt):**
+  - **Collection mới `KnowledgeChunk`**, không sửa collection cũ: mỗi đoạn có loại nguồn (`message` / `chatFile` / `sharedDoc`), `conversationId` (`null` với kho chung), chữ, `embedding` và thông tin ghi nguồn (tin đầu–cuối, hoặc file + trang). Một file gửi vào hai cuộc trò chuyện thì có hai bộ đoạn, để bộ lọc quyền chỉ là `conversationId ∈ [được phép]` hoặc kho chung.
+  - **Tin nhắn: gom nhiều tin liền nhau** thành một đoạn (tối đa 10 tin hoặc khoảng 1.000 ký tự; hai tin cách nhau hơn 1 giờ thì sang đoạn mới). Nguồn trỏ tới tin đầu của đoạn.
+  - **File: khoảng 1.000 ký tự mỗi đoạn, chồng 150 ký tự, không vắt qua hai trang** (giữ số trang để ghi nguồn).
+  - **Chạy nền trong backend** (mỗi 30 giây, không Redis/hàng đợi), tối đa 60 đoạn/phút để chừa 40 cho embedding câu hỏi; gặp 429 thì nghỉ tới phút sau. Đoạn tin chỉ đóng khi đủ 10 tin hoặc cuộc trò chuyện im 10 phút. Dữ liệu có sẵn được làm dần.
+  - **Không index** tin của Komi AI và chữ trong chat riêng với Komi; file tải vào chat với Komi vẫn được index.
+  - Hàm `searchKnowledge` lọc theo quyền ngay trong `$vectorSearch` (danh sách thành viên tại lúc hỏi). Test dùng bản tìm kiếm giả (cosine trong JS) vì `mongodb-memory-server` không có `$vectorSearch`.
+- **Vì sao:** gom tin giữ được ngữ cảnh hỏi–đáp ("mấy giờ họp?" + "9h nhé") và tốn ít hạn mức (100 đoạn/phút); chạy nền chịu được 429 mà không mất việc. Câu trả lời của bot có thể sai, index lại sẽ làm bot tự trích chính nó.
+- **Đánh đổi:** tin vừa gửi chưa tìm chéo được ngay (tới 10 phút); cuộc trò chuyện hiện tại vẫn có 20 tin gần nhất trong prompt. Nguồn của tin nhắn chỉ trỏ tới đầu đoạn, không đúng từng tin. File gửi nhiều nơi tốn embedding nhiều lần.
+- **Xem lại khi:** chạy nhiều backend cùng lúc (cần khoá để hai worker không làm trùng), hoặc bộ eval cho thấy cỡ đoạn chưa hợp.
+
 ## Chưa quyết
 
 - (Chưa có.)

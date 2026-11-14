@@ -9,6 +9,9 @@ import "./app.js";
 import { server } from "./socket/index.js";
 import { getKomiBot } from "./ai/komiBot.js";
 import { llm } from "./ai/llm.js";
+import { embeddings } from "./ai/embeddings.js";
+import { startRagIndexer } from "./ai/rag/indexer.js";
+import { ensureVectorIndex } from "./ai/rag/vectorStore.js";
 
 const PORT = process.env.PORT || 5001;
 
@@ -33,6 +36,25 @@ connectDB().then(async () => {
     console.log(`Komi AI bật (LLM_PROVIDER=${process.env.LLM_PROVIDER})`);
   } else {
     console.log("Komi AI tắt (chưa cấu hình LLM_PROVIDER)");
+  }
+
+  // RAG (Giai đoạn 4): tạo vector index nếu chưa có, rồi bật worker chạy nền
+  if (embeddings.isReady()) {
+    try {
+      const index = await ensureVectorIndex();
+      if (index.status === "mismatch") {
+        console.error(
+          `Vector index có ${index.indexDimensions} chiều nhưng EMBEDDING_DIMENSIONS là ${embeddings.dimensions()}: ` +
+            "tìm kiếm sẽ lỗi tới khi xoá index và embedding cũ",
+        );
+      }
+    } catch (error) {
+      console.error("Không tạo được vector index (MongoDB có hỗ trợ $vectorSearch không?)", error?.message ?? error);
+    }
+    startRagIndexer();
+    console.log(`RAG bật (EMBEDDING_PROVIDER=${process.env.EMBEDDING_PROVIDER})`);
+  } else {
+    console.log("RAG tắt (chưa cấu hình EMBEDDING_PROVIDER)");
   }
 
   server.listen(PORT, () => {
