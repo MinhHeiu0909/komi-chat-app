@@ -30,7 +30,7 @@ backend/    Express 5 + Socket.IO + Mongoose (JavaScript, ESM)
   src/controllers/      auth, user, friend, conversation, message
   src/middlewares/      authMiddleware, conversationMiddleware (kiểm tra thành viên), friendMiddleware, rateLimit, socketMiddleware, uploadMiddleware
   src/utils/            messageHelper, directConversation, conversationFormat, messageImage, messageFile, documentText, messageSearch
-  src/ai/               llm (LLMProvider), komiBot, prompt, quota, streams
+  src/ai/               llm (LLMProvider), embeddings (EmbeddingProvider), komiBot, prompt, quota, streams
   scripts/seed.js       dữ liệu demo tiếng Việt
   test/                 test tích hợp (node:test + supertest + mongodb-memory-server)
 frontend/   React 19 + Vite + TypeScript + Zustand + Tailwind 4 + shadcn/ui
@@ -82,15 +82,15 @@ cd frontend && npm run build
 - **Giai đoạn 2 — Komi AI cơ bản: đã xong**, đã merge vào `main` (PR #3). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
 - **Giai đoạn 3 — Tài liệu trong chat: đã xong**, đã merge vào `main` (PR #4). Có: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`, Cloudinary `raw`), trích chữ lúc tải lên (`utils/documentText.js`, PDF theo trang), hỏi đáp trên 3 file gần nhất của cuộc trò chuyện có ghi nguồn tới file/trang, trả lời đúng ngôn ngữ câu hỏi, tìm tin trong cuộc trò chuyện không phân biệt dấu (`GET /api/conversations/:id/search`). Đã thử với Cloudinary và Gemini thật, chủ repo đã thử trên giao diện. Chưa thử PDF tiếng Việt thật (chủ repo chọn để sau). Komi AI chỉ đọc file của cuộc trò chuyện nơi được hỏi; hỏi chéo để Giai đoạn 4.
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
-- `npm test` backend: 116/116 (2026-11-13).
+- `npm test` backend: 139/139 (2026-11-14).
 
 **Giai đoạn 4 — Kho tài liệu chung + RAG: đang làm** trên nhánh `phase-4-rag` (tách từ `main` sau PR #4). Quyết định đã chốt ngày 2026-11-14 (chi tiết ở `docs/DECISIONS.md`): kho chung mọi người trong app xem được, chỉ người tải lên xoá được; embedding `gemini-embedding-2` qua endpoint OpenAI-compatible; vector search bằng `mongodb/mongodb-atlas-local` khi dev (Atlas M0 khi deploy); `@komi` trong nhóm chỉ tìm trong nhóm đó + kho chung, chat riêng với Komi tìm trên mọi cuộc trò chuyện người hỏi là thành viên + kho chung.
 
 **Việc tiếp theo (cập nhật 2026-11-14) — đọc trước khi bắt đầu phiên mới.** Thứ tự dự kiến, mỗi bước một commit, đề xuất chi tiết cho chủ repo duyệt trước khi code từng bước:
 
 1. ~~Đổi `docker-compose.yml` sang `mongodb/mongodb-atlas-local`~~ **xong 2026-11-14**: image `:8.0`, chuỗi kết nối phải có `?directConnection=true` (cả `backend/.env`), `$vectorSearch` có filter chạy được, index còn sau khi khởi động lại.
-2. Lớp `EmbeddingProvider` (bản giả + bản OpenAI-compatible), biến môi trường riêng cho embedding, thêm vào `.env.example`. Xem hạn mức embedding thật trong AI Studio.
-3. Chia đoạn + embedding cho file trong chat và tin nhắn; collection đoạn có `conversationId` (hoặc đánh dấu kho chung) để lọc theo quyền trong `$vectorSearch`. Test dùng bản tìm kiếm giả (cosine trong JS).
+2. ~~Lớp `EmbeddingProvider`~~ **xong 2026-11-14**: `src/ai/embeddings.js`, biến `EMBEDDING_*` (không đặt base URL thì dùng chung key của chat). Hạn mức free đo được: **100 đoạn/phút**, tính theo từng đoạn trong batch; hạn mức ngày chưa biết.
+3. Chia đoạn + embedding cho file trong chat và tin nhắn (gom nhiều tin vào một đoạn và giãn nhịp gửi, vì hạn mức 100 đoạn/phút); collection đoạn có `conversationId` (hoặc đánh dấu kho chung) để lọc theo quyền trong `$vectorSearch`. Test dùng bản tìm kiếm giả (cosine trong JS).
 4. Kho tài liệu chung: API tải lên/xem/xoá + trang trên frontend.
 5. Komi AI tra cứu theo phạm vi ở trên, có ghi nguồn; bỏ giới hạn "3 file gần nhất" của Giai đoạn 3 khi RAG chạy.
 6. Bộ câu hỏi eval tiếng Việt + script Python chạy offline, ra recall@k.

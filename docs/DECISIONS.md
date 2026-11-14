@@ -94,6 +94,8 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
   - Trang tài liệu của Google không ghi rõ tiếng Việt (chỉ ghi "hơn 100 ngôn ngữ"); bộ eval tiếng Việt sẽ kiểm chứng.
   - Đổi image DB: dữ liệu trong volume `mongo-data` cũ cần seed lại; test không chạy được `$vectorSearch` thật.
 - **Xem lại khi:** chạm hạn mức embedding (cân nhắc model chạy ngay trong Node), hoặc cần quyền theo nhóm cho kho chung.
+- **Đo thật (2026-11-14):** free tier của `gemini-embedding-2` là **100 đoạn/phút**, tính theo từng đoạn trong batch (không phải theo request); mỗi request tối đa 100 đoạn. Hệ quả cho bước chia đoạn: không embedding từng tin nhắn riêng lẻ mà gom nhiều tin liền nhau thành một đoạn, và việc embedding chạy nền phải giãn nhịp theo hạn mức.
+- **Cấu hình embedding (2026-11-14):** biến `EMBEDDING_*` riêng, mặc định 768 chiều. Không đặt `EMBEDDING_BASE_URL` thì dùng chung nhà cung cấp và key với chat; đặt riêng thì chỉ dùng `EMBEDDING_API_KEY`, không gửi key của chat sang nhà cung cấp khác. Chưa thêm tiền tố nhiệm vụ của Gemini (`task: search result | query: ...`) vì chỉ đúng với một model; để bộ eval ở bước 6 đo xem có đáng không.
 
 ## Chưa quyết
 
