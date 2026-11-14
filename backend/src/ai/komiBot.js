@@ -121,7 +121,8 @@ export const STOPPED_NOTE = "_(Đã dừng)_";
  * @param {object} opts.bot
  * @param {string} opts.askerId        người được dừng câu trả lời
  * @param {object|null} opts.quota     lượt đã lấy bằng takeQuota (hoàn lại nếu lỗi)
- * @param {() => Promise<object[]>} opts.buildMessages  dựng prompt (chỉ gọi khi AI bật)
+ * @param {() => Promise<object[] | { messages: object[], footnote?: string }>} opts.buildMessages
+ *   dựng prompt (chỉ gọi khi AI bật); footnote: dòng thêm vào cuối câu trả lời (vd. tra cứu lỗi)
  * @param {string} [opts.prefix]       chữ cố định đứng đầu câu trả lời (vd. tiêu đề bản tóm tắt)
  * @param {object} [opts.replyTo]
  */
@@ -145,8 +146,15 @@ const streamBotReply = async ({ conversation, bot, askerId, quota, buildMessages
         text = prefix;
         io.to(conversationId).emit("ai:token", { conversationId, streamId, token: prefix });
       }
-      const messages = await buildMessages();
+      const built = await buildMessages();
+      const messages = Array.isArray(built) ? built : built.messages;
       for await (const token of llm.streamChat({ messages, signal: controller.signal })) {
+        text += token;
+        io.to(conversationId).emit("ai:token", { conversationId, streamId, token });
+      }
+      // trả lời xong (không dừng, không lỗi) mới thêm dòng ghi chú
+      if (!Array.isArray(built) && built.footnote) {
+        const token = `\n\n${built.footnote}`;
         text += token;
         io.to(conversationId).emit("ai:token", { conversationId, streamId, token });
       }
@@ -216,7 +224,8 @@ const respond = async (conversation, trigger, bot) => {
     bot,
     askerId,
     quota,
-    buildMessages: () => buildKomiPrompt({ conversation: current, botId: bot._id }),
+    // tra cứu (RAG) theo quyền của người hỏi: trong nhóm chỉ nhóm đó + kho chung (xem rag/search.js)
+    buildMessages: () => buildKomiPrompt({ conversation: current, botId: bot._id, trigger }),
     // Trong nhóm, trả lời kèm trích dẫn câu hỏi để biết bot đang trả lời ai
     replyTo: isGroup
       ? {

@@ -6,6 +6,7 @@ import userRoute from "./routes/userRoute.js";
 import friendRoute from "./routes/friendRoute.js";
 import messageRoute from "./routes/messageRoute.js";
 import conversationRoute from "./routes/conversationRoute.js";
+import documentRoute from "./routes/documentRoute.js";
 import { protectedRoute } from "./middlewares/authMiddleware.js";
 import { app } from "./socket/index.js";
 
@@ -31,5 +32,6 @@ app.use("/api/users", userRoute);
 app.use("/api/friends", friendRoute);
 app.use("/api/messages", messageRoute);
 app.use("/api/conversations", conversationRoute);
+app.use("/api/documents", documentRoute);
 
 export default app;

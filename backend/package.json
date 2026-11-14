@@ -6,7 +6,11 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "test": "node --test --test-concurrency=1 --test-timeout=30000 \"test/**/*.test.js\"",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "rag:index": "node scripts/ragIndex.js",
+    "rag:search": "node scripts/ragSearch.js",
+    "eval:load": "node scripts/evalLoad.js",
+    "eval:run": "node scripts/evalRun.js"
   },
   "type": "module",
   "keywords": [],

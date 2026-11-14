@@ -11,7 +11,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Moon, Sun } from "lucide-react";
+import { FileText, Moon, Sun } from "lucide-react";
+import { Link, useLocation } from "react-router";
 import { Switch } from "../ui/switch";
 import CreateNewChat from "../chat/CreateNewChat";
 import NewGroupChatModal from "../chat/NewGroupChatModal";
@@ -27,6 +28,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { isDark, toggleTheme } = useThemeStore();
   const { user } = useAuthStore();
   const { convoLoading } = useChatStore();
+  const { pathname } = useLocation();
 
 
   return (
@@ -66,6 +68,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarGroupContent>
             <CreateNewChat />
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Kho tài liệu chung */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link to="/documents" />}
+                  isActive={pathname === "/documents"}
+                >
+                  <FileText />
+                  <span>Tài liệu chung</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
