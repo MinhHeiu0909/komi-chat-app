@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend-rag",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd backend && EMBEDDING_PROVIDER=openai-compatible EMBEDDING_MODEL=gemini-embedding-2 node src/server.js"
+      ],
+      "port": 5001
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd frontend && npm run dev -- --port 5173 --strictPort"],
+      "port": 5173
+    }
+  ]
+}
