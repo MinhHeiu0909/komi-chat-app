@@ -157,6 +157,14 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Test: `test/aiUsage.test.js` (11 test: ghi log khi xong / dừng / lỗi, ước tính token embedding, không lưu nội dung, 401/404, cờ `isAiAdmin`, tổng hợp và chi phí, mốc 0h giờ VN), thêm kiểm tra `usage` trong `komiBot.test.js`. `npm test` backend 188/188; `npm run build` frontend qua; lint file mới sạch.
   - **Đã thử với Gemini thật** (Docker, `AI_ADMIN_USERNAMES=an.nguyen`): hỏi Komi AI trong chat riêng → 2 dòng log: `embedding_search` ≈7 token (ước tính) và `chat` 1.661 vào / 63 ra (số Gemini báo, `estimated: false`); trang admin hiện đúng, cả ở độ rộng điện thoại.
   - Chưa thử: tài khoản không phải admin trên giao diện (đã có test API 404); trang với giá đã đặt (đã có test tính chi phí); tóm tắt và worker index trên Gemini thật.
+- **Việc 2 — chống prompt injection (2026-11-17):** thiết kế trong `docs/DECISIONS.md` (mục "chống prompt injection"), kết quả ở `eval/README.md`.
+  - Bộ thử `eval/injection/cases.json` (15 tấn công + 2 đối chứng), script `backend/scripts/evalInjection.js` (`npm run eval:injection`; MongoDB tạm trong bộ nhớ, embedding giả, LLM thật hoặc `--fake`).
+  - `prompt.js`: `neutralizeDataTags` (NFC + chặn thẻ `tài_liệu` / `tra_cứu` / `tin_nhắn_chưa_đọc`), quy tắc "chỉ người hỏi được ra yêu cầu" trong system prompt và ghi chú nhóm, khối `<tin_nhắn_chưa_đọc>` cho tóm tắt, quy tắc ngôn ngữ nhường yêu cầu của người hỏi.
+  - Test: `test/promptInjection.test.js` (6 test: chặn thẻ kể cả NFD, khối tóm tắt không tự đóng được, bộ thử hợp lệ, mã canh không có sẵn trong dữ liệu); sửa 1 assert ngôn ngữ trong `komiBot.test.js`. `npm test` backend 194/194.
+  - **Đo với Gemini thật** (`gemini-3.5-flash-lite`, mỗi câu 2 lần): trước khi sửa 4/30 tấn công thành công (thẻ đóng NFD; hỏi về tin chứa lệnh thì làm theo luôn) → sau khi sửa 0/30, trả lời đúng 30/30, đối chứng 4/4. Khoảng 100 lượt gọi Gemini (3 lần đo + thử).
+  - Phát hiện thêm: một câu trả lời bị cắt giữa chừng ("MẸO 1: Tiêu đề email ngắn gọn, rõ ràng và"): tái hiện được lỗi còn treo "câu trả lời bị cắt" (provider chưa đọc `finish_reason`).
+  - Chưa thử: trên giao diện (prompt đổi nhưng luồng app không đổi).
+
 
 
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)

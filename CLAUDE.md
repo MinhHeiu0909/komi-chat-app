@@ -35,7 +35,7 @@ backend/    Express 5 + Socket.IO + Mongoose (JavaScript, ESM)
   scripts/seed.js       dữ liệu demo tiếng Việt; ragIndex.js, ragSearch.js để thử RAG
   test/                 test tích hợp (node:test + supertest + mongodb-memory-server)
   scripts/eval*.js      nạp dữ liệu eval và chạy câu hỏi (DB riêng komi_eval*)
-eval/       bộ eval RAG: data/ (dữ liệu + câu hỏi tự soạn), metrics.py (Python, thư viện chuẩn), results/
+eval/       bộ eval RAG: data/ (dữ liệu + câu hỏi tự soạn), metrics.py (Python, thư viện chuẩn), results/; injection/ (bộ thử prompt injection)
 frontend/   React 19 + Vite + TypeScript + Zustand + Tailwind 4 + shadcn/ui
   src/stores/           useAuthStore, useChatStore, useSocketStore, useFriendStore, ...
   src/services/         gọi API (axios instance ở src/lib/axios.ts)
@@ -54,6 +54,7 @@ cd backend && npm run seed -- --reset   # XOÁ toàn bộ dữ liệu rồi seed
 cd backend && npm run rag:index -- --flush          # tạo index RAG ngay (cần EMBEDDING_*)
 cd backend && npm run rag:search -- "câu hỏi" --user an.nguyen
 cd backend && npm run eval:load && npm run eval:run -- --name hien-tai   # cần EMBEDDING_*, xem eval/README.md
+cd backend && npm run eval:injection -- --name hien-tai --repeat 2   # bộ thử prompt injection, gọi LLM thật
 python3 eval/metrics.py --out eval/results/summary.md
 
 cd frontend && npm run dev
@@ -89,20 +90,19 @@ cd frontend && npm run build
 - **Giai đoạn 2 — Komi AI cơ bản: đã xong**, đã merge vào `main` (PR #3). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
 - **Giai đoạn 3 — Tài liệu trong chat: đã xong**, đã merge vào `main` (PR #4). Có: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`, Cloudinary `raw`), trích chữ lúc tải lên (`utils/documentText.js`, PDF theo trang), hỏi đáp trên 3 file gần nhất của cuộc trò chuyện có ghi nguồn tới file/trang, trả lời đúng ngôn ngữ câu hỏi, tìm tin trong cuộc trò chuyện không phân biệt dấu (`GET /api/conversations/:id/search`). Đã thử với Cloudinary và Gemini thật, chủ repo đã thử trên giao diện. Chưa thử PDF tiếng Việt thật (chủ repo chọn để sau). Komi AI chỉ đọc file của cuộc trò chuyện nơi được hỏi; hỏi chéo để Giai đoạn 4.
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
-- `npm test` backend: 188/188 (2026-11-17).
+- `npm test` backend: 194/194 (2026-11-17).
 - **Giai đoạn 4 — Kho tài liệu chung + RAG: đã xong**, đã merge vào `main` (PR #5, 2026-11-14). Có: MongoDB Atlas Local khi dev (`$vectorSearch`), `EmbeddingProvider` (`gemini-embedding-2`, 768 chiều), worker RAG chạy nền (`src/ai/rag/`: gom ≤10 tin/đoạn, file ~1.000 ký tự theo trang), kho tài liệu chung (`/api/documents`, trang `/documents`, index 50.000 ký tự đầu, 10 tài liệu/người/ngày), Komi AI tra cứu ở mọi câu hỏi theo quyền người hỏi (nhóm → nhóm đó + kho chung; chat riêng với Komi → mọi cuộc trò chuyện của người hỏi + kho chung) và ghi nguồn bằng chữ thường, bộ eval (`eval/`: recall@1 88%, recall@6 100%, MRR 0,92, rò rỉ 0/6). Quyết định và đánh đổi: `docs/DECISIONS.md` (các mục "Giai đoạn 4"); chi tiết và kết quả thử: `docs/PROGRESS.md`. Chủ repo đã thử Komi AI có tra cứu trên giao diện (Docker, 2026-11-17): trả lời đúng, có ghi nguồn.
 
 **Việc tiếp theo (cập nhật 2026-11-17) — đọc trước khi bắt đầu phiên mới:**
 
 1. Nhánh **`phase-5-polish`** (tách từ `main` sau PR #5). Đã commit: cấu hình chạy dev (`.claude/launch.json`); sửa 2 lỗi UX chủ repo báo (danh sách bạn bè tự đóng khi chọn người; tô vàng từ khoá ở kết quả tìm tin và trong tin vừa nhảy tới, xem `docs/PROGRESS.md`).
 2. **Làm lại giao diện frontend** (chủ repo chọn: gọn kiểu công sở, làm toàn bộ theo từng phần, mỗi phần một commit). Phần 1 (bộ màu trung tính + một màu nhấn chàm, bỏ gradient/kính mờ/hiệu ứng nảy, chữ viết hoa kiểu câu) đã commit. **Tạm dừng** (2026-11-17): chủ repo tìm hiểu thêm skill build frontend rồi mới quyết làm tiếp. Còn lại: phần 2 thanh bên (avatar màu, thẻ có viền → danh sách phẳng), phần 3 khung chat (bong bóng tin nhận, đầu khung chat, ô nhập), phần 4 trang đăng nhập + Tài liệu chung.
-3. **Theo dõi chi phí AI: đã xong** (2026-11-17): `AiCallLog`, trang `/admin/ai-usage` cho username trong `AI_ADMIN_USERNAMES`, giá ước tính qua `AI_PRICE_*`. Chi tiết: `docs/DECISIONS.md`, `docs/PROGRESS.md`.
-4. **Trước khi viết code các việc còn lại của Giai đoạn 5, hỏi chủ repo** (đề xuất phương án kèm khuyến nghị; chủ repo đã nghe đề xuất ngày 2026-11-17, thứ tự: injection → deploy → README):
-   - Chống prompt injection: phạm vi (tin nhắn, file, kho chung đã là khối dữ liệu riêng), có thêm bước kiểm tra nào, có bộ câu thử injection không.
+3. **Theo dõi chi phí AI và chống prompt injection: đã xong** (2026-11-17). Injection: bộ thử `eval/injection/` + `npm run eval:injection`, trước sửa 4/30 tấn công thành công → sau sửa 0/30 (Gemini thật). Chi phí AI: `AiCallLog`, trang `/admin/ai-usage` cho username trong `AI_ADMIN_USERNAMES`, giá ước tính qua `AI_PRICE_*`. Chi tiết: `docs/DECISIONS.md`, `docs/PROGRESS.md`.
+4. **Trước khi viết code các việc còn lại của Giai đoạn 5, hỏi chủ repo** (đề xuất phương án kèm khuyến nghị; chủ repo đã nghe đề xuất ngày 2026-11-17, thứ tự: deploy → README):
    - Deploy công khai có giới hạn chi phí: nơi chạy backend/frontend (free tier, không gắn thẻ), Atlas M0 cho DB (đã chốt), Cloudinary, tài khoản demo, cách chặn lạm dụng hạn mức Gemini.
    - README: ngôn ngữ (tiếng Việt / tiếng Anh cho hồ sơ AI Engineer), GIF demo, sơ đồ kiến trúc, bảng eval (lấy từ `eval/README.md`).
 
-Còn treo, làm khi chủ repo nhắc: thử PDF tiếng Việt thật (để file vào `samples/`); provider chưa đọc `finish_reason` (một lần câu trả lời bị cắt giữa chữ, chưa tái hiện được).
+Còn treo, làm khi chủ repo nhắc: thử PDF tiếng Việt thật (để file vào `samples/`); provider chưa đọc `finish_reason` (câu trả lời bị cắt giữa chữ; đã tái hiện một lần khi chạy `npm run eval:injection` ngày 2026-11-17, câu `control-asker-format`).
 
 Ghi chú vận hành:
 

@@ -782,10 +782,11 @@ describe("ngôn ngữ trả lời", () => {
     };
 
     const vi = await ask("Thủ đô của Pháp là gì?");
-    assert.match(vi, /trả lời bằng tiếng Việt\.$/);
+    // người hỏi tự yêu cầu ngôn ngữ khác thì vẫn làm theo (eval/injection: câu đối chứng)
+    assert.match(vi, /trả lời bằng tiếng Việt, trừ khi chính người hỏi yêu cầu ngôn ngữ khác\.$/);
     const en = await ask("What is the capital of Vietnam?");
     assert.match(en, /You MUST reply in English/);
-    assert.doesNotMatch(en, /trả lời bằng tiếng Việt\.$/);
+    assert.doesNotMatch(en, /trả lời bằng tiếng Việt, trừ khi/);
   });
 });
 
