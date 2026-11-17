@@ -177,6 +177,8 @@ describe("chat riêng với Komi AI", () => {
       ["user", "assistant", "user"],
     );
     assert.equal(messages.at(-1).content, "Câu thứ hai");
+    // ghi chi phí: loại chat, tính cho người hỏi
+    assert.deepEqual(calls[0].usage, { kind: "chat", userId: A._id.toString() });
     assert.equal(messages[2].content, FAKE_REPLY);
   });
 
@@ -552,6 +554,7 @@ describe("tóm tắt tin chưa đọc", () => {
     );
     assert.equal(summary.content, "**Tóm tắt 3 tin chưa đọc trong nhóm «Phòng Kinh doanh»**\n\n- Gửi báo giá trước thứ Sáu");
 
+    assert.deepEqual(calls[0].usage, { kind: "summary", userId: A._id.toString() });
     const prompt = calls[0].messages.map((m) => m.content).join("\n");
     assert.match(prompt, /binh: Chốt gửi báo giá cho khách Hoà Phát trước thứ Sáu/);
     assert.match(prompt, /binh: Link tài liệu: https:\/\/example\.com\/bao-gia/);
@@ -779,10 +782,11 @@ describe("ngôn ngữ trả lời", () => {
     };
 
     const vi = await ask("Thủ đô của Pháp là gì?");
-    assert.match(vi, /trả lời bằng tiếng Việt\.$/);
+    // người hỏi tự yêu cầu ngôn ngữ khác thì vẫn làm theo (eval/injection: câu đối chứng)
+    assert.match(vi, /trả lời bằng tiếng Việt, trừ khi chính người hỏi yêu cầu ngôn ngữ khác\.$/);
     const en = await ask("What is the capital of Vietnam?");
     assert.match(en, /You MUST reply in English/);
-    assert.doesNotMatch(en, /trả lời bằng tiếng Việt\.$/);
+    assert.doesNotMatch(en, /trả lời bằng tiếng Việt, trừ khi/);
   });
 });
 

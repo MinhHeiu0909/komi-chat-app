@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import axios from "axios";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -6,6 +6,7 @@ import { chatService } from "@/services/chatService";
 import { jumpToMessage } from "@/lib/messageJump";
 import { messagePreviewText } from "@/lib/messageFile";
 import { formatMessageTime } from "@/lib/utils";
+import { findMatches } from "@/lib/textSearch";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { Conversation, Message } from "@/types/chat";
 
@@ -16,6 +17,23 @@ const DEBOUNCE_MS = 300;
  * Tìm tin trong cuộc trò chuyện đang mở (gõ không dấu vẫn ra tin có dấu).
  * Bấm một kết quả để nhảy tới tin đó. Dùng với key={convo._id} để đổi cuộc trò chuyện là xoá kết quả cũ.
  */
+// Chữ xem trước của kết quả, từ khoá được in đậm và tô nền
+const HighlightedText = ({ text, query }: { text: string; query: string }) => {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const [from, to] of findMatches(text, query)) {
+    if (from > last) parts.push(text.slice(last, from));
+    parts.push(
+      <mark key={from} className="rounded-sm bg-yellow-200 px-0.5 font-semibold text-foreground dark:bg-yellow-500/40">
+        {text.slice(from, to)}
+      </mark>
+    );
+    last = to;
+  }
+  parts.push(text.slice(last));
+  return <>{parts}</>;
+};
+
 const MessageSearch = ({ convo }: { convo: Conversation }) => {
   const currentUserId = useAuthStore((s) => s.user?._id);
   const [open, setOpen] = useState(false);
@@ -109,7 +127,7 @@ const MessageSearch = ({ convo }: { convo: Conversation }) => {
                   type="button"
                   onClick={() => {
                     setOpen(false);
-                    jumpToMessage(convo._id, m._id);
+                    jumpToMessage(convo._id, m._id, q);
                   }}
                   className="w-full rounded-md px-2 py-1.5 text-left hover:bg-primary/10"
                 >
@@ -120,7 +138,7 @@ const MessageSearch = ({ convo }: { convo: Conversation }) => {
                     </span>
                   </span>
                   <span className="block line-clamp-2 text-sm wrap-break-word">
-                    {messagePreviewText(m)}
+                    <HighlightedText text={messagePreviewText(m)} query={q} />
                   </span>
                 </button>
               </li>

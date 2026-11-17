@@ -5,27 +5,28 @@ import { Card } from "../ui/card";
 import UserAvatar from "../chat/UserAvatar";
 import { useChatStore } from "@/stores/useChatStore";
 
-const FriendListModal = () => {
+const FriendListModal = ({ onSelected }: { onSelected?: () => void }) => {
   const { friends } = useFriendStore();
   const { createConversation } = useChatStore();
 
   const handleAddConversation = async (friendId: string) => {
     await createConversation("direct", "", [friendId]);
+    onSelected?.();
   };
 
   return (
     <DialogContent className="glass max-w-md">
       <DialogHeader>
-        <DialogTitle className="flex items-center gap-2 text-xl capitalize">
+        <DialogTitle className="flex items-center gap-2 text-lg">
           <MessageCircleMore className="size-5" />
-          bắt đầu hội thoại mới
+          Bắt đầu hội thoại mới
         </DialogTitle>
       </DialogHeader>
 
       {/* friends list */}
       <div className="space-y-4">
-        <h1 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-          danh sách bạn bè
+        <h1 className="text-xs font-medium text-muted-foreground mb-2">
+          Bạn bè
         </h1>
 
         <div className="space-y-2 max-h-60 overflow-y-auto">

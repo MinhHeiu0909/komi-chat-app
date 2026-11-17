@@ -142,6 +142,31 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Giới hạn: bộ dữ liệu nhỏ và dễ (33 đoạn), recall@6 chạm trần ở mọi cấu hình. Chưa so: tiền tố nhiệm vụ của Gemini, model embedding khác.
   - `npm test` backend 176/176.
 
+## Giai đoạn 5 — Hoàn thiện (nhánh `phase-5-polish`)
+
+- **Thử Komi AI có tra cứu trên giao diện (2026-11-17):** chạy bằng Docker. Lỗi "Komi AI đang tắt" do thiếu `.env` ở thư mục gốc (Docker không đọc `backend/.env`); sau đó lỗi "đang gặp sự cố" do `LLM_API_KEY` còn chữ mẫu có dấu (header HTTP không nhận ký tự ngoài Latin-1, log: `Cannot convert argument to a ByteString`). Sửa `.env` xong: hỏi "Link bản staging ở đâu?" trong chat riêng với Komi → đúng link, có nguồn nhóm "Đồ án Komi".
+- **Sửa 2 lỗi UX chủ repo báo (2026-11-17):**
+  - "Gửi tin nhắn mới": chọn một người thì danh sách bạn bè tự đóng sau khi tạo xong cuộc trò chuyện (`CreateNewChat` điều khiển `open` của Dialog, `FriendListModal` nhận `onSelected`).
+  - Tìm tin: từ khoá được in đậm, tô nền ở danh sách kết quả; bấm kết quả thì từ khoá trong tin vừa nhảy tới được tô vàng (CSS Custom Highlight API, không sửa DOM do React quản lý; trình duyệt không hỗ trợ thì chỉ còn viền nháy). So khớp không phân biệt dấu giống backend (`src/lib/textSearch.ts`). Chỉ một tin được tô tại một thời điểm.
+  - `npm run build` frontend qua, lint các file sửa sạch. Đã thử trên trình duyệt (Claude và chủ repo). Chưa thử: giao diện tối, Firefox < 140.
+- **Giao diện phần 1 (2026-11-17):** bộ màu trung tính + một màu nhấn chàm, bỏ gradient/kính mờ/hiệu ứng nảy, chữ viết hoa kiểu câu, màn chào gọn. Các phần còn lại tạm dừng (xem `CLAUDE.md`).
+- **Việc 1 — theo dõi chi phí AI (2026-11-17):** thiết kế trong `docs/DECISIONS.md` (mục "theo dõi chi phí AI").
+  - Backend: model `AiCallLog` (TTL 90 ngày), `src/ai/usageLog.js` (`recordAiCall`, `estimateTokens`), `llm.js` / `embeddings.js` ghi log sau mỗi lời gọi; provider OpenAI-compatible gửi `stream_options.include_usage` và đọc `usage` (chat lẫn embedding); provider giả báo `usage` cho chat, không báo cho embedding (để test cả hai đường). Loại lời gọi: `chat`, `summary` (komiBot), `embedding_search` (tra cứu, tính cho người hỏi), `embedding_index` (worker, không thuộc user nào).
+  - API `GET /api/admin/ai-usage?days=1|7|30` (`adminController.js`), quyền qua `AI_ADMIN_USERNAMES` (`adminMiddleware.js`, người khác 404). `/api/users/me` trả thêm `isAiAdmin`.
+  - Frontend: trang `/admin/ai-usage` (`AiUsagePanel`), link "Chi phí AI" ở thanh bên chỉ hiện với admin. Sửa thêm: sau khi tải lại trang luôn gọi lại `/users/me` (trước đây user lưu trong localStorage không bao giờ được cập nhật, nên cờ admin / hồ sơ đổi ở máy khác không hiện).
+  - Test: `test/aiUsage.test.js` (11 test: ghi log khi xong / dừng / lỗi, ước tính token embedding, không lưu nội dung, 401/404, cờ `isAiAdmin`, tổng hợp và chi phí, mốc 0h giờ VN), thêm kiểm tra `usage` trong `komiBot.test.js`. `npm test` backend 188/188; `npm run build` frontend qua; lint file mới sạch.
+  - **Đã thử với Gemini thật** (Docker, `AI_ADMIN_USERNAMES=an.nguyen`): hỏi Komi AI trong chat riêng → 2 dòng log: `embedding_search` ≈7 token (ước tính) và `chat` 1.661 vào / 63 ra (số Gemini báo, `estimated: false`); trang admin hiện đúng, cả ở độ rộng điện thoại.
+  - Chưa thử: tài khoản không phải admin trên giao diện (đã có test API 404); trang với giá đã đặt (đã có test tính chi phí); tóm tắt và worker index trên Gemini thật.
+- **Việc 2 — chống prompt injection (2026-11-17):** thiết kế trong `docs/DECISIONS.md` (mục "chống prompt injection"), kết quả ở `eval/README.md`.
+  - Bộ thử `eval/injection/cases.json` (15 tấn công + 2 đối chứng), script `backend/scripts/evalInjection.js` (`npm run eval:injection`; MongoDB tạm trong bộ nhớ, embedding giả, LLM thật hoặc `--fake`).
+  - `prompt.js`: `neutralizeDataTags` (NFC + chặn thẻ `tài_liệu` / `tra_cứu` / `tin_nhắn_chưa_đọc`), quy tắc "chỉ người hỏi được ra yêu cầu" trong system prompt và ghi chú nhóm, khối `<tin_nhắn_chưa_đọc>` cho tóm tắt, quy tắc ngôn ngữ nhường yêu cầu của người hỏi.
+  - Test: `test/promptInjection.test.js` (6 test: chặn thẻ kể cả NFD, khối tóm tắt không tự đóng được, bộ thử hợp lệ, mã canh không có sẵn trong dữ liệu); sửa 1 assert ngôn ngữ trong `komiBot.test.js`. `npm test` backend 194/194.
+  - **Đo với Gemini thật** (`gemini-3.5-flash-lite`, mỗi câu 2 lần): trước khi sửa 4/30 tấn công thành công (thẻ đóng NFD; hỏi về tin chứa lệnh thì làm theo luôn) → sau khi sửa 0/30, trả lời đúng 30/30, đối chứng 4/4. Khoảng 100 lượt gọi Gemini (3 lần đo + thử).
+  - Phát hiện thêm: một câu trả lời bị cắt giữa chừng ("MẸO 1: Tiêu đề email ngắn gọn, rõ ràng và"): tái hiện được lỗi còn treo "câu trả lời bị cắt" (provider chưa đọc `finish_reason`).
+  - Chưa thử: trên giao diện (prompt đổi nhưng luồng app không đổi).
+
+
+
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 
 Giữ lại để tham khảo. Lý do thay đổi: `docs/DECISIONS.md`.

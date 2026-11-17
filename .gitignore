@@ -31,3 +31,6 @@ dist-ssr
 *.sw?
 # File tài liệu mẫu để thử tay (PDF/Word) — không commit
 samples/
+
+# quyền riêng của Claude Code trên từng máy (không commit); .claude/launch.json thì dùng chung
+.claude/settings.local.json

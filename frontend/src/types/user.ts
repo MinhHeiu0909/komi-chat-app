@@ -8,6 +8,8 @@ export interface User {
   phone?: string;
   // false: người khác luôn thấy mình offline
   showOnlineStatus?: boolean;
+  // được xem trang chi phí AI (backend đọc AI_ADMIN_USERNAMES); chỉ để hiện link, API vẫn tự kiểm tra
+  isAiAdmin?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

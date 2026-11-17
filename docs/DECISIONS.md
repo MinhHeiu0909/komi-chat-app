@@ -152,6 +152,22 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Xem lại khi:** có dữ liệu dùng thử thật; muốn so model embedding khác.
 - **Kết quả (2026-11-14):** bộ dữ liệu 84 tin (ít hơn dự kiến 120–150; chủ repo chọn đo luôn), 33 đoạn. Cấu hình hiện tại: recall@1 88%, recall@6 100%, MRR 0,92, rò rỉ 0/6. Ghép câu hỏi trước: recall@1 51% → đã bỏ (xem mục bước 5). Đoạn 5 tin: 85% / 0,91 → giữ 10 tin. recall@6 chạm trần ở mọi cấu hình: bộ dữ liệu dễ, cần dữ liệu khó hơn nếu muốn so tiếp (vd. tiền tố nhiệm vụ Gemini).
 
+## 2026-11-17 — Giai đoạn 5: theo dõi chi phí AI
+
+- **Ghi ở đâu:** mỗi lần gọi LLM / embedding ghi một dòng vào collection mới `AiCallLog` (không dùng lại `AiUsage`, vốn là bộ đếm hạn mức 20 lượt/ngày). Ghi ở `llm.js` và `embeddings.js` (điểm chung mọi lời gọi đi qua), bên gọi chỉ truyền `usage: { kind, userId }`. Chỉ lưu con số (token, thời gian, kết quả, mã lỗi), **không lưu nội dung**. TTL 90 ngày. Ghi log lỗi thì chỉ in console, không làm hỏng câu trả lời.
+- **Số token:** chat xin `stream_options.include_usage`; Gemini có trả (đã thử thật). Embedding của Gemini (qua API OpenAI-compatible) không trả `usage` → ước tính ~4 ký tự/token, đánh dấu `estimated`, trang admin hiện dấu ≈. Bị dừng giữa chừng cũng ước tính. Lỗi trước khi có chữ nào (vd. 429) thì ghi 0 token.
+- **Ai được xem:** biến `AI_ADMIN_USERNAMES` (không đổi schema `User`, không cần màn hình cấp quyền). Phương án `role` trong `User` để sau nếu cần. Người không có quyền nhận 404 mặc định của Express (như route không tồn tại).
+- **Chi phí:** free tier không tốn tiền; trang hiện "nếu trả phí thì tốn bao nhiêu" theo giá đặt trong `AI_PRICE_INPUT_PER_1M`, `AI_PRICE_OUTPUT_PER_1M`, `AI_PRICE_EMBEDDING_PER_1M` (không ghi cứng giá trong code vì giá đổi theo thời gian). Chưa đặt giá thì không tính.
+- **Xem ở đâu:** trang `/admin/ai-usage` (tổng, theo tính năng, theo người dùng, theo ngày; hôm nay / 7 / 30 ngày giờ Việt Nam), chỉ bảng, chưa vẽ biểu đồ để không thêm thư viện. Không dùng dịch vụ ngoài (Langfuse...).
+
+## 2026-11-17 — Giai đoạn 5: chống prompt injection
+
+- **Đo trước, sửa sau:** bộ thử `eval/injection/` (15 câu tấn công qua 5 đường: tin nhóm, file trong chat, tài liệu kho chung, tin nhóm khác qua tra cứu, tóm tắt; 2 câu đối chứng), chấm bằng regex với mã canh, chạy trên model thật. Kết quả và cách chạy: `eval/README.md`.
+- **Không thêm lời gọi LLM thứ hai** (bộ lọc / giám khảo): tốn gấp đôi hạn mức free, chậm hơn, và kết quả đo đã đạt 0/30 khi chỉ sửa prompt. Xem lại nếu bộ thử lớn hơn cho thấy prompt không đủ.
+- **Đã sửa:** (1) chuẩn hoá NFC trước khi chặn thẻ khối dữ liệu (`neutralizeDataTags`, dùng chung cho file, tra cứu và tóm tắt); (2) system prompt nói rõ chỉ người đang hỏi được ra yêu cầu, mọi thứ khác là dữ liệu kể cả khi tự xưng hệ thống / giả làm người hỏi; khi kể lại yêu cầu trong dữ liệu thì không thực hiện, không chép mã / link; yêu cầu của chính người hỏi vẫn làm theo; (3) prompt tóm tắt dùng khối `<tin_nhắn_chưa_đọc>` thay vì `---` (tin nhắn giả được dấu kết thúc); (4) quy tắc ngôn ngữ nhường cho yêu cầu ngôn ngữ của chính người hỏi.
+- **Không đổi cấu trúc lịch sử nhóm** (vẫn là các lượt `user` dạng "Tên: nội dung"): đã cân nhắc gom tin của người khác vào một khối dữ liệu riêng, nhưng mọi câu tấn công qua tin nhóm đều chặn được sau khi sửa prompt; đổi cấu trúc là thay đổi lớn hơn, để dành nếu bộ thử sau này cho thấy cần.
+- **Lớp bảo vệ có sẵn từ trước, không phụ thuộc model:** dữ liệu đưa vào prompt đã lọc theo quyền người hỏi (lệnh giấu không đọc được dữ liệu người hỏi không được xem); ảnh trong markdown không được tải (không lộ dữ liệu qua URL ảnh); link mở tab mới với `noopener noreferrer nofollow`.
+
 ## Chưa quyết
 
 - (Chưa có.)

@@ -17,7 +17,8 @@ export const useAuthStore = create<AuthState>()(
         set({ accessToken });
       },
       setUser: (user) => {
-        set({ user });
+        // API cập nhật hồ sơ không trả cờ isAiAdmin: giữ cờ đang có
+        set({ user: { ...user, isAiAdmin: user.isAiAdmin ?? get().user?.isAiAdmin } });
       },
       clearState: () => {
         set({ accessToken: null, user: null, loading: false });
@@ -92,14 +93,14 @@ export const useAuthStore = create<AuthState>()(
       refresh: async () => {
         try {
           set({ loading: true });
-          const { user, fetchMe, setAccessToken } = get();
+          const { fetchMe, setAccessToken } = get();
           const accessToken = await authService.refresh();
 
           setAccessToken(accessToken);
 
-          if (!user) {
-            await fetchMe();
-          }
+          // luôn lấy lại user (kể cả khi đã lưu trong localStorage): thông tin có thể đã đổi
+          // ở thiết bị khác, và cờ isAiAdmin đổi theo cấu hình server
+          await fetchMe();
         } catch (error) {
           console.error(error);
           toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");

@@ -141,7 +141,26 @@ describe("provider OpenAI-compatible", () => {
     assert.equal(req.method, "POST");
     assert.equal(req.url, "/v1/chat/completions"); // bỏ dấu / thừa ở cuối base URL
     assert.equal(req.headers.authorization, "Bearer test-key");
-    assert.deepEqual(req.body, { model: "test-model", messages: MESSAGES, stream: true });
+    assert.deepEqual(req.body, {
+      model: "test-model",
+      messages: MESSAGES,
+      stream: true,
+      stream_options: { include_usage: true }, // xin số token để theo dõi chi phí
+    });
+  });
+
+  test("sự kiện usage ở cuối luồng (choices rỗng) được báo qua onUsage", async () => {
+    handler = (_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      res.write(sse("Xin chào"));
+      res.write(`data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 12, completion_tokens: 3 } })}\n\n`);
+      res.end("data: [DONE]\n\n");
+    };
+
+    let usage = null;
+    const chunks = await collect(provider().streamChat({ messages: MESSAGES, onUsage: (u) => (usage = u) }));
+    assert.deepEqual(chunks, ["Xin chào"]);
+    assert.deepEqual(usage, { prompt_tokens: 12, completion_tokens: 3 });
   });
 
   test("sự kiện bị cắt ngang giữa hai gói vẫn ghép đúng (cả ký tự tiếng Việt nhiều byte)", async () => {

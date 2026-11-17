@@ -27,15 +27,15 @@ backend/    Express 5 + Socket.IO + Mongoose (JavaScript, ESM)
   src/app.js            dựng Express app (routes, middleware) — import được trong test
   src/server.js         entrypoint: nạp env, kết nối DB, listen
   src/socket/index.js   Socket.IO server, online users, announceConversation()
-  src/controllers/      auth, user, friend, conversation, message, document (kho tài liệu chung)
-  src/middlewares/      authMiddleware, conversationMiddleware (kiểm tra thành viên), friendMiddleware, rateLimit, socketMiddleware, uploadMiddleware
+  src/controllers/      auth, user, friend, conversation, message, document (kho tài liệu chung), admin (chi phí AI)
+  src/middlewares/      authMiddleware, adminMiddleware (AI_ADMIN_USERNAMES), conversationMiddleware (kiểm tra thành viên), friendMiddleware, rateLimit, socketMiddleware, uploadMiddleware
   src/utils/            messageHelper, directConversation, conversationFormat, messageImage, messageFile, documentText, messageSearch
-  src/ai/               llm (LLMProvider), embeddings (EmbeddingProvider), komiBot, prompt, quota, streams
+  src/ai/               llm (LLMProvider), embeddings (EmbeddingProvider), usageLog (ghi AiCallLog), komiBot, prompt, quota, streams
   src/ai/rag/           chunking, indexer (worker chạy nền), vectorStore ($vectorSearch / bản giả), search
   scripts/seed.js       dữ liệu demo tiếng Việt; ragIndex.js, ragSearch.js để thử RAG
   test/                 test tích hợp (node:test + supertest + mongodb-memory-server)
   scripts/eval*.js      nạp dữ liệu eval và chạy câu hỏi (DB riêng komi_eval*)
-eval/       bộ eval RAG: data/ (dữ liệu + câu hỏi tự soạn), metrics.py (Python, thư viện chuẩn), results/
+eval/       bộ eval RAG: data/ (dữ liệu + câu hỏi tự soạn), metrics.py (Python, thư viện chuẩn), results/; injection/ (bộ thử prompt injection)
 frontend/   React 19 + Vite + TypeScript + Zustand + Tailwind 4 + shadcn/ui
   src/stores/           useAuthStore, useChatStore, useSocketStore, useFriendStore, ...
   src/services/         gọi API (axios instance ở src/lib/axios.ts)
@@ -54,6 +54,7 @@ cd backend && npm run seed -- --reset   # XOÁ toàn bộ dữ liệu rồi seed
 cd backend && npm run rag:index -- --flush          # tạo index RAG ngay (cần EMBEDDING_*)
 cd backend && npm run rag:search -- "câu hỏi" --user an.nguyen
 cd backend && npm run eval:load && npm run eval:run -- --name hien-tai   # cần EMBEDDING_*, xem eval/README.md
+cd backend && npm run eval:injection -- --name hien-tai --repeat 2   # bộ thử prompt injection, gọi LLM thật
 python3 eval/metrics.py --out eval/results/summary.md
 
 cd frontend && npm run dev
@@ -89,24 +90,24 @@ cd frontend && npm run build
 - **Giai đoạn 2 — Komi AI cơ bản: đã xong**, đã merge vào `main` (PR #3). Có lớp `LLMProvider`, user Komi AI (chat riêng + `@komi` trong nhóm) trả lời streaming qua socket có nút dừng, hạn mức 20 lượt/user/ngày (`AI_DAILY_LIMIT`), nút tóm tắt tin chưa đọc. Đã thử với Gemini thật: model `gemini-3.5-flash-lite` (khoảng 15–20 giây mỗi câu).
 - **Giai đoạn 3 — Tài liệu trong chat: đã xong**, đã merge vào `main` (PR #4). Có: gửi file PDF/Word trong chat (`ChatFile`, `POST /api/messages/files`, Cloudinary `raw`), trích chữ lúc tải lên (`utils/documentText.js`, PDF theo trang), hỏi đáp trên 3 file gần nhất của cuộc trò chuyện có ghi nguồn tới file/trang, trả lời đúng ngôn ngữ câu hỏi, tìm tin trong cuộc trò chuyện không phân biệt dấu (`GET /api/conversations/:id/search`). Đã thử với Cloudinary và Gemini thật, chủ repo đã thử trên giao diện. Chưa thử PDF tiếng Việt thật (chủ repo chọn để sau). Komi AI chỉ đọc file của cuộc trò chuyện nơi được hỏi; hỏi chéo để Giai đoạn 4.
 - Lộ trình được viết lại ngày 2026-11-11; lý do ở `docs/DECISIONS.md`.
-- `npm test` backend: 176/176 (2026-11-14).
+- `npm test` backend: 194/194 (2026-11-17).
+- **Giai đoạn 4 — Kho tài liệu chung + RAG: đã xong**, đã merge vào `main` (PR #5, 2026-11-14). Có: MongoDB Atlas Local khi dev (`$vectorSearch`), `EmbeddingProvider` (`gemini-embedding-2`, 768 chiều), worker RAG chạy nền (`src/ai/rag/`: gom ≤10 tin/đoạn, file ~1.000 ký tự theo trang), kho tài liệu chung (`/api/documents`, trang `/documents`, index 50.000 ký tự đầu, 10 tài liệu/người/ngày), Komi AI tra cứu ở mọi câu hỏi theo quyền người hỏi (nhóm → nhóm đó + kho chung; chat riêng với Komi → mọi cuộc trò chuyện của người hỏi + kho chung) và ghi nguồn bằng chữ thường, bộ eval (`eval/`: recall@1 88%, recall@6 100%, MRR 0,92, rò rỉ 0/6). Quyết định và đánh đổi: `docs/DECISIONS.md` (các mục "Giai đoạn 4"); chi tiết và kết quả thử: `docs/PROGRESS.md`. Chủ repo đã thử Komi AI có tra cứu trên giao diện (Docker, 2026-11-17): trả lời đúng, có ghi nguồn.
 
-**Giai đoạn 4 — Kho tài liệu chung + RAG: đã xong** trên nhánh `phase-4-rag`, chờ chủ repo push và mở PR vào `main`. Chưa thử trên giao diện: Komi AI trả lời có tra cứu (cần `EMBEDDING_*` trong `.env`) (tách từ `main` sau PR #4). Quyết định đã chốt ngày 2026-11-14 (chi tiết ở `docs/DECISIONS.md`): kho chung mọi người trong app xem được, chỉ người tải lên xoá được; embedding `gemini-embedding-2` qua endpoint OpenAI-compatible; vector search bằng `mongodb/mongodb-atlas-local` khi dev (Atlas M0 khi deploy); `@komi` trong nhóm chỉ tìm trong nhóm đó + kho chung, chat riêng với Komi tìm trên mọi cuộc trò chuyện người hỏi là thành viên + kho chung.
+**Việc tiếp theo (cập nhật 2026-11-17) — đọc trước khi bắt đầu phiên mới:**
 
-**Việc tiếp theo (cập nhật 2026-11-14) — đọc trước khi bắt đầu phiên mới:** chủ repo push `phase-4-rag` và mở PR; hỏi PR đã merge chưa rồi mới tách nhánh Giai đoạn 5 (đề xuất tên, hỏi trước khi code như các giai đoạn trước). Các bước của Giai đoạn 4 (đều đã xong):
+1. Nhánh **`phase-5-polish`** (tách từ `main` sau PR #5). Đã commit: cấu hình chạy dev (`.claude/launch.json`); sửa 2 lỗi UX chủ repo báo (danh sách bạn bè tự đóng khi chọn người; tô vàng từ khoá ở kết quả tìm tin và trong tin vừa nhảy tới, xem `docs/PROGRESS.md`).
+2. **Làm lại giao diện frontend** (chủ repo chọn: gọn kiểu công sở, làm toàn bộ theo từng phần, mỗi phần một commit). Phần 1 (bộ màu trung tính + một màu nhấn chàm, bỏ gradient/kính mờ/hiệu ứng nảy, chữ viết hoa kiểu câu) đã commit. **Tạm dừng** (2026-11-17): chủ repo tìm hiểu thêm skill build frontend rồi mới quyết làm tiếp. Còn lại: phần 2 thanh bên (avatar màu, thẻ có viền → danh sách phẳng), phần 3 khung chat (bong bóng tin nhận, đầu khung chat, ô nhập), phần 4 trang đăng nhập + Tài liệu chung.
+3. **Theo dõi chi phí AI và chống prompt injection: đã xong** (2026-11-17). Injection: bộ thử `eval/injection/` + `npm run eval:injection`, trước sửa 4/30 tấn công thành công → sau sửa 0/30 (Gemini thật). Chi phí AI: `AiCallLog`, trang `/admin/ai-usage` cho username trong `AI_ADMIN_USERNAMES`, giá ước tính qua `AI_PRICE_*`. Chi tiết: `docs/DECISIONS.md`, `docs/PROGRESS.md`.
+4. **Trước khi viết code các việc còn lại của Giai đoạn 5, hỏi chủ repo** (đề xuất phương án kèm khuyến nghị; chủ repo đã nghe đề xuất ngày 2026-11-17, thứ tự: deploy → README):
+   - Deploy công khai có giới hạn chi phí: nơi chạy backend/frontend (free tier, không gắn thẻ), Atlas M0 cho DB (đã chốt), Cloudinary, tài khoản demo, cách chặn lạm dụng hạn mức Gemini.
+   - README: ngôn ngữ (tiếng Việt / tiếng Anh cho hồ sơ AI Engineer), GIF demo, sơ đồ kiến trúc, bảng eval (lấy từ `eval/README.md`).
 
-1. ~~Đổi `docker-compose.yml` sang `mongodb/mongodb-atlas-local`~~ **xong 2026-11-14**: image `:8.0`, chuỗi kết nối phải có `?directConnection=true` (cả `backend/.env`), `$vectorSearch` có filter chạy được, index còn sau khi khởi động lại.
-2. ~~Lớp `EmbeddingProvider`~~ **xong 2026-11-14**: `src/ai/embeddings.js`, biến `EMBEDDING_*` (không đặt base URL thì dùng chung key của chat). Hạn mức free đo được: **100 đoạn/phút**, tính theo từng đoạn trong batch; hạn mức ngày chưa biết.
-3. ~~Chia đoạn + embedding cho file trong chat và tin nhắn~~ **xong 2026-11-14** (`src/ai/rag/`, chi tiết ở `docs/PROGRESS.md`); thiết kế đã duyệt (xem `docs/DECISIONS.md`, mục "bước 3"): collection `KnowledgeChunk`, gom ≤10 tin/~1.000 ký tự, file ~1.000 ký tự chồng 150 theo trang, chạy nền mỗi 30 giây ≤60 đoạn/phút, bỏ tin của bot và chữ trong chat riêng với Komi, `searchKnowledge` lọc quyền trong `$vectorSearch`, script `npm run rag:search`. Chưa nối vào bot (bước 5).
-4. ~~Kho tài liệu chung~~ **xong 2026-11-14** (chi tiết ở `docs/PROGRESS.md`). Thiết kế đã duyệt (`docs/DECISIONS.md`, mục "bước 4"): model `SharedDocument`, `/api/documents` (xoá: chỉ người tải lên, người khác 403), index tối đa 50.000 ký tự/tài liệu, 10 tài liệu/người/ngày, trang `/documents` trên sidebar.
-5. ~~Komi AI tra cứu theo phạm vi ở trên, có ghi nguồn~~ **xong 2026-11-14** (`retrieveForPrompt` trong `src/ai/prompt.js`, chi tiết ở `docs/PROGRESS.md`; chưa thử trên giao diện). Thiết kế đã duyệt (`docs/DECISIONS.md`, mục "bước 5"): tra cứu mọi câu hỏi, giữ toàn văn 1 file gần nhất, 6 đoạn/~8.000 ký tự, nguồn bằng chữ thường, tra cứu lỗi thì vẫn trả lời. **Đã bỏ ghép câu hỏi trước** sau eval (recall@1 51% → 88%).
-6. ~~Bộ câu hỏi eval tiếng Việt + script Python chạy offline~~ **xong 2026-11-14** (`eval/`, kết quả ở `eval/README.md`): recall@1 88%, recall@6 100%, MRR 0,92, rò rỉ 0/6. Thiết kế đã duyệt (`docs/DECISIONS.md`, mục "bước 6"): dữ liệu văn phòng riêng trong DB `komi_eval`, ~40 câu có chuỗi bằng chứng + câu kiểm tra rò rỉ, Node chạy tra cứu xuất JSON, Python (thư viện chuẩn) tính recall@k/MRR; so 3 cấu hình (hiện tại, không ghép câu trước, đoạn 5 tin).
-
-Còn treo, làm khi chủ repo nhắc: thử PDF tiếng Việt thật (để file vào `samples/`); provider chưa đọc `finish_reason` (một lần câu trả lời bị cắt giữa chữ, chưa tái hiện được).
+Còn treo, làm khi chủ repo nhắc: thử PDF tiếng Việt thật (để file vào `samples/`); provider chưa đọc `finish_reason` (câu trả lời bị cắt giữa chữ; đã tái hiện một lần khi chạy `npm run eval:injection` ngày 2026-11-17, câu `control-asker-format`).
 
 Ghi chú vận hành:
 
 - MongoDB khi dev là `mongodb/mongodb-atlas-local:8.0` (có `$vectorSearch`). Lần đầu chạy sau khi đổi từ `mongo:7`: chạy seed lại (volume `mongo-data` cũ không dùng nữa).
+- Bộ eval dùng DB riêng `komi_eval` và `komi_eval_w5` trên cùng Atlas Local (không đụng dữ liệu demo); `npm run eval:load` xoá và nạp lại.
 - Tài khoản demo: `an.nguyen`, `binh`, `chi`, `dung`, `hoa` / `komi123`.
 - Khoá Cloudinary khi chạy `docker compose`: điền vào `.env` ở **thư mục gốc** (cạnh `docker-compose.yml`, đã gitignore). Chạy backend trực tiếp thì dùng `backend/.env`. Cần đủ 3 biến `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`; API key phải có quyền tải lên (thiếu thì 403 "missing permissions create"); phải bật Settings → Security → "PDF and ZIP files delivery" thì link PDF mới mở được (không bật thì 401).
 - File tài liệu mẫu để thử tay đặt trong `samples/` ở gốc repo (đã gitignore, không commit).

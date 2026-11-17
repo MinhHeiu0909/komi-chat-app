@@ -10,7 +10,8 @@
     "rag:index": "node scripts/ragIndex.js",
     "rag:search": "node scripts/ragSearch.js",
     "eval:load": "node scripts/evalLoad.js",
-    "eval:run": "node scripts/evalRun.js"
+    "eval:run": "node scripts/evalRun.js",
+    "eval:injection": "node scripts/evalInjection.js"
   },
   "type": "module",
   "keywords": [],

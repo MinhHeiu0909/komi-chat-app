@@ -5,236 +5,164 @@
 @config "../tailwind.config.ts";
 
 @layer base {
+  /* Bộ màu "công sở": nền trung tính, một màu nhấn chàm (indigo) duy nhất.
+     Tên biến giữ như cũ để component không phải đổi. */
   :root {
-    /* Base colors - soft pastels */
-    --background: 0 0% 100%; /*violet-50*/
-    --foreground: 217.2 32.6% 17.5%; /* slate-800 */
+    --background: 0 0% 100%;
+    --foreground: 222 22% 15%;
 
-    /* Card system */
-    --card: 250 100% 99%;
-    --card-foreground: 217.2 32.6% 17.5%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 22% 15%;
 
-    /* Popover system */
-    --popover: 250 100% 99%;
-    --popover-foreground: 240 15% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 22% 15%;
 
-    /* Primary */
-    /* Tím */
-    --primary: 271 79% 47%;
-    --primary-foreground: 210 40% 96.1%; /*slate-100*/
-    /* Hồng */
-    --primary-glow: 320 100% 70%;
+    /* Màu nhấn */
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 243 75% 59%;
 
-    /* Secondary - lavender */
-    --secondary: 270 50% 92%;
-    --secondary-foreground: 280 100% 40%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 22% 20%;
 
-    /* Muted */
-    --muted: 260 30% 95%;
-    --muted-foreground: 240 15% 50%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 44%;
 
-    /* Accent - cyan */
-    --accent: 180 100% 75%;
-    --accent-foreground: 240 100% 15%;
+    /* shadcn dùng accent cho nền khi rê chuột */
+    --accent: 220 14% 95%;
+    --accent-foreground: 222 22% 15%;
 
-    /* Chat colors */
-    --chat-bubble-sent: 271 79% 47%;
+    --chat-bubble-sent: 243 75% 59%;
     --chat-bubble-sent-foreground: 0 0% 100%;
-    --chat-bubble-received: 0 0% 96%;
-    --chat-bubble-received-foreground: 240 15% 15%;
+    --chat-bubble-received: 220 14% 96%;
+    --chat-bubble-received-foreground: 222 22% 15%;
 
-    /* Status colors */
-    --online: 140 100% 50%;
-    --offline: 0 0% 70%;
+    --online: 142 71% 40%;
+    --offline: 220 9% 70%;
 
-    /* Warning */
-    --warning: 37.7 92.1% 50.2%;
+    --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    /* Info */
-    --info: 198.6 88.7% 48.4%;
+    --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
 
-    /* Destructive */
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Border and input */
-    --border: 282 16% 87%;
-    --input: 260 30% 92%;
-    --ring: 271 79% 47%;
+    --border: 220 13% 90%;
+    --input: 220 13% 88%;
+    --ring: 243 75% 59%;
 
-    /* Design system values */
-    --radius: 1rem;
+    --radius: 0.625rem;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(
-      135deg,
-      hsl(var(--primary)),
-      hsl(var(--primary-glow))
-    );
-    --gradient-chat: linear-gradient(
-      135deg,
-      hsl(280, 100%, 65%),
-      hsl(320, 100%, 70%)
-    );
-    --gradient-accent: linear-gradient(
-      90deg,
-      hsl(var(--accent)),
-      hsl(200, 100%, 70%)
-    );
+    /* Các "gradient" cũ giờ là màu phẳng (component cũ vẫn dùng tên này) */
+    --gradient-primary: hsl(var(--primary));
+    --gradient-chat: hsl(var(--primary));
+    --gradient-accent: hsl(var(--primary));
+    --gradient-glass: hsl(var(--card));
+    --gradient-purple: hsl(var(--muted));
 
-    --gradient-glass: linear-gradient(
-      135deg,
-      hsl(250, 100%, 98%) 0%,
-      hsl(260, 50%, 96%) 100%
-    );
+    /* Bóng nhẹ, không phát sáng */
+    --shadow-soft: 0 1px 3px 0 hsl(222 22% 15% / 0.08), 0 1px 2px -1px hsl(222 22% 15% / 0.06);
+    --shadow-glow: 0 4px 12px -2px hsl(222 22% 15% / 0.1);
+    --shadow-bubble: none;
 
-    /* pattern craft */
-    --gradient-purple: radial-gradient(
-      125% 125% at 50% 10%,
-      hsla(0, 0%, 100%, 1) 40%,
-      hsla(262, 83%, 58%, 0.5) 100%
-    );
+    --sidebar-background: 220 20% 98%;
+    --sidebar-foreground: 222 22% 20%;
+    --sidebar-primary: 243 75% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 94%;
+    --sidebar-accent-foreground: 222 22% 15%;
+    --sidebar-border: 220 13% 90%;
+    --sidebar-ring: 243 75% 59%;
 
-    /* Shadows */
-    --shadow-soft: 0 8px 32px -8px hsl(271 79% 47% / 0.15);
-    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.3);
-    --shadow-bubble: 0 4px 20px -4px hsl(280 50% 70% / 0.2);
-
-    /* Sidebar */
-    --sidebar-background: 0 0% 100%;
-
-    --sidebar-foreground: 215.3 25% 26.7%; /*slate-700*/
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-smooth: all 0.15s ease-out;
+    --transition-bounce: all 0.15s ease-out;
   }
 
   .dark {
-    /* Dark mode - neon on dark aesthetic */
-    --background: 240 15% 18%;
-    --foreground: 214.3 31.8% 91.4%; /* slate-200 */
+    --background: 222 16% 10%;
+    --foreground: 220 14% 92%;
 
-    --card: 240 15% 12%;
-    --card-foreground: 214.3 31.8% 91.4%;
+    --card: 222 16% 12%;
+    --card-foreground: 220 14% 92%;
 
-    --popover: 240 15% 12%;
-    --popover-foreground: 250 100% 95%;
+    --popover: 222 16% 13%;
+    --popover-foreground: 220 14% 92%;
 
-    --primary: 280 100% 70%;
-    --primary-foreground: 240 15% 8%;
-    --primary-glow: 320 100% 80%;
+    --primary: 243 80% 68%;
+    --primary-foreground: 222 30% 10%;
+    --primary-glow: 243 80% 68%;
 
-    --secondary: 270 20% 20%;
-    --secondary-foreground: 280 100% 80%;
+    --secondary: 222 14% 17%;
+    --secondary-foreground: 220 14% 92%;
 
-    --muted: 240 15% 15%;
-    --muted-foreground: 240 15% 70%;
+    --muted: 222 14% 16%;
+    --muted-foreground: 220 9% 64%;
 
-    --accent: 180 100% 60%;
-    --accent-foreground: 240 15% 8%;
+    --accent: 222 14% 18%;
+    --accent-foreground: 220 14% 92%;
 
-    /* Chat bubbles in dark mode */
-    --chat-bubble-sent: 280 100% 65%;
+    /* bong bóng của mình đậm hơn màu nhấn để chữ trắng đủ tương phản */
+    --chat-bubble-sent: 243 55% 50%;
     --chat-bubble-sent-foreground: 0 0% 100%;
-    --chat-bubble-received: 240 15% 18%;
-    --chat-bubble-received-foreground: 250 100% 90%;
+    --chat-bubble-received: 222 14% 18%;
+    --chat-bubble-received-foreground: 220 14% 92%;
 
-    /* Status colors */
-    --online: 140 100% 60%;
+    --online: 142 60% 50%;
     --away: 45 100% 65%;
-    --offline: 0 0% 50%;
+    --offline: 220 9% 45%;
 
-    --destructive: 0 80% 47%;
+    --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 281 15% 25%;
-    --input: 240 15% 18%;
-    --ring: 280 100% 70%;
+    --border: 222 12% 21%;
+    --input: 222 12% 24%;
+    --ring: 243 80% 68%;
 
-    /* Dark mode gradients */
-    --gradient-primary: linear-gradient(
-      135deg,
-      hsl(280, 100%, 70%),
-      hsl(320, 100%, 80%)
-    );
-    --gradient-chat: linear-gradient(
-      135deg,
-      hsl(280, 100%, 70%),
-      hsl(320, 100%, 75%)
-    );
-    --gradient-accent: linear-gradient(
-      90deg,
-      hsl(180, 100%, 60%),
-      hsl(200, 100%, 70%)
-    );
-    --gradient-glass: linear-gradient(
-      45deg,
-      hsl(240, 15%, 12%) 0%,
-      hsl(240, 15%, 18%) 100%
-    );
+    --gradient-primary: hsl(var(--primary));
+    --gradient-chat: hsl(var(--primary));
+    --gradient-accent: hsl(var(--primary));
+    --gradient-glass: hsl(var(--card));
+    --gradient-purple: hsl(var(--background));
 
-    --gradient-purple: radial-gradient(
-      125% 125% at 50% 10%,
-      hsla(0, 0%, 0%, 1) 40%,
-      hsla(310, 96%, 11%, 0.5) 100%
-    );
+    --shadow-soft: 0 1px 3px 0 hsl(0 0% 0% / 0.3);
+    --shadow-glow: 0 4px 12px -2px hsl(0 0% 0% / 0.4);
+    --shadow-bubble: none;
 
-    /* Dark shadows with glow */
-    --shadow-soft: 0 8px 32px -8px hsl(280 100% 70% / 0.25);
-    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.4);
-    --shadow-bubble: 0 4px 20px -4px hsl(280 80% 50% / 0.3);
-
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 222 16% 8%;
+    --sidebar-foreground: 220 14% 88%;
+    --sidebar-primary: 243 80% 68%;
+    --sidebar-primary-foreground: 222 30% 10%;
+    --sidebar-accent: 222 14% 15%;
+    --sidebar-accent-foreground: 220 14% 92%;
+    --sidebar-border: 222 12% 18%;
+    --sidebar-ring: 243 80% 68%;
   }
 
   body {
-    @apply text-slate-800 dark:text-slate-200 bg-background;
+    @apply text-foreground bg-background antialiased;
   }
 }
 
 /* Chat App Utility Classes */
 @layer components {
+  /* Thẻ/khung: nền phẳng + viền mảnh (trước là kính mờ gradient) */
   .glass {
-    @apply bg-gradient-to-br from-violet-200/10 to-pink-100/5 border-violet-300/30;
-  }
-
-  .dark .glass {
-    @apply backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 border border-white/20;
+    @apply bg-card border border-border;
   }
 
   .glass-strong {
-    @apply backdrop-blur-2xl bg-gradient-to-br from-card/90 to-card/60 border border-border/70;
+    @apply bg-card border border-border;
   }
 
-  /* Chat bubble variants */
+  /* Bong bóng tin */
   .chat-bubble-sent {
-    @apply bg-primary/80! text-[hsl(var(--chat-bubble-sent-foreground))]! shadow-[var(--shadow-bubble)];
+    @apply bg-[hsl(var(--chat-bubble-sent))]! text-[hsl(var(--chat-bubble-sent-foreground))]!;
   }
 
   .chat-bubble-received {
-    @apply bg-[hsl(var(--chat-bubble-received))] text-[hsl(var(--chat-bubble-received-foreground))] border border-border/50;
+    @apply bg-[hsl(var(--chat-bubble-received))] text-[hsl(var(--chat-bubble-received-foreground))] border-0;
   }
 
   .error-message {
@@ -247,7 +175,7 @@
 
   /* Status indicators */
   .status-online {
-    @apply bg-[hsl(var(--online))] shadow-[0_0_8px_hsl(var(--online)/0.5)];
+    @apply bg-[hsl(var(--online))];
   }
 
   .status-offline {
@@ -307,24 +235,24 @@
     @apply relative;
   }
 
+  /* bỏ vòng nhấp nháy quanh badge chưa đọc (gây rối mắt) */
   .pulse-ring::before {
-    content: "";
-    @apply absolute inset-0 rounded-full bg-primary/30 animate-ping duration-[2000ms];
+    content: none;
   }
 
   /* Message bounce in animation */
   .message-bounce {
-    animation: messageSlideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+    animation: messageSlideIn 0.15s ease-out forwards;
   }
 
   @keyframes messageSlideIn {
     0% {
       opacity: 0;
-      transform: translateY(20px) scale(0.95);
+      transform: translateY(4px);
     }
     100% {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translateY(0);
     }
   }
 
@@ -333,13 +261,19 @@
     animation: replyTargetFlash 1.5s ease-out;
   }
 
+  /* Từ khoá trong tin vừa nhảy tới từ kết quả tìm kiếm (lib/messageJump.ts) */
+  ::highlight(search-hit) {
+    background-color: #fde047;
+    color: #1c1917;
+  }
+
   @keyframes replyTargetFlash {
     0%,
     40% {
-      box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 45%, transparent);
+      box-shadow: 0 0 0 3px hsl(var(--primary) / 0.45);
     }
     100% {
-      box-shadow: 0 0 0 3px transparent;
+      box-shadow: 0 0 0 3px hsl(var(--primary) / 0);
     }
   }
 
@@ -434,25 +368,25 @@
 }
 
 :root {
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --sidebar: hsl(220 20% 98%);
+  --sidebar-foreground: hsl(222 22% 20%);
+  --sidebar-primary: hsl(243 75% 59%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(220 14% 94%);
+  --sidebar-accent-foreground: hsl(222 22% 15%);
+  --sidebar-border: hsl(220 13% 90%);
+  --sidebar-ring: hsl(243 75% 59%);
 }
 
 .dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --sidebar: hsl(222 16% 8%);
+  --sidebar-foreground: hsl(220 14% 88%);
+  --sidebar-primary: hsl(243 80% 68%);
+  --sidebar-primary-foreground: hsl(222 30% 10%);
+  --sidebar-accent: hsl(222 14% 15%);
+  --sidebar-accent-foreground: hsl(220 14% 92%);
+  --sidebar-border: hsl(222 12% 18%);
+  --sidebar-ring: hsl(243 80% 68%);
 }
 
 @theme inline {
