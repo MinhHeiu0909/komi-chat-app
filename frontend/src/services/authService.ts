@@ -32,7 +32,7 @@ export const authService = {
 
   fetchMe: async () => {
     const res = await api.get("/users/me", { withCredentials: true });
-    return res.data.user;
+    return { ...res.data.user, isAiAdmin: Boolean(res.data.isAiAdmin) };
   },
 
   // dùng chung promise với interceptor để không gọi refresh song song

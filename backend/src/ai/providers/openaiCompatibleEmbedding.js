@@ -21,7 +21,7 @@ export const createOpenAICompatibleEmbeddingProvider = ({
 }) => {
   const url = `${baseUrl.replace(/\/+$/, "")}/embeddings`;
 
-  const embedBatch = async (texts, signal) => {
+  const embedBatch = async (texts, signal, onUsage) => {
     const timeout = AbortSignal.timeout(timeoutMs);
     const fetchSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
@@ -45,6 +45,9 @@ export const createOpenAICompatibleEmbeddingProvider = ({
       } catch (cause) {
         throw new LLMError(LLM_ERROR.OTHER, { detail: `Phản hồi embedding hỏng: ${truncate(body)}`, cause });
       }
+
+      // số token của lô này (Gemini có thể không gửi; khi đó bên gọi tự ước tính)
+      if (json?.usage) onUsage?.(json.usage);
 
       const data = Array.isArray(json?.data) ? json.data : [];
       // Gemini bỏ trường index khi index = 0, nên thiếu index thì lấy theo thứ tự trả về
@@ -75,10 +78,10 @@ export const createOpenAICompatibleEmbeddingProvider = ({
 
   return {
     dimensions,
-    async embed({ texts, signal }) {
+    async embed({ texts, signal, onUsage }) {
       const vectors = [];
       for (let i = 0; i < texts.length; i += MAX_BATCH_SIZE) {
-        vectors.push(...(await embedBatch(texts.slice(i, i + MAX_BATCH_SIZE), signal)));
+        vectors.push(...(await embedBatch(texts.slice(i, i + MAX_BATCH_SIZE), signal, onUsage)));
       }
       return vectors;
     },

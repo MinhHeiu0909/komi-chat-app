@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import SignInPage from "./pages/SignInPage";
 import ChatAppPage from "./pages/ChatAppPage";
 import DocumentsPage from "./pages/DocumentsPage";
+import AiUsagePage from "./pages/AiUsagePage";
 import { Toaster } from "sonner";
 import SignUpPage from "./pages/SignUpPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -51,6 +52,10 @@ function App() {
             <Route
               path="/documents"
               element={<DocumentsPage />}
+            />
+            <Route
+              path="/admin/ai-usage"
+              element={<AiUsagePage />}
             />
           </Route>
         </Routes>

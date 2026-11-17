@@ -7,6 +7,7 @@ import friendRoute from "./routes/friendRoute.js";
 import messageRoute from "./routes/messageRoute.js";
 import conversationRoute from "./routes/conversationRoute.js";
 import documentRoute from "./routes/documentRoute.js";
+import adminRoute from "./routes/adminRoute.js";
 import { protectedRoute } from "./middlewares/authMiddleware.js";
 import { app } from "./socket/index.js";
 
@@ -33,5 +34,6 @@ app.use("/api/friends", friendRoute);
 app.use("/api/messages", messageRoute);
 app.use("/api/conversations", conversationRoute);
 app.use("/api/documents", documentRoute);
+app.use("/api/admin", adminRoute);
 
 export default app;

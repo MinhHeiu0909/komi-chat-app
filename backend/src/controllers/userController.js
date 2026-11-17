@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import Session from "../models/Session.js";
 import bcrypt from "bcrypt";
 import { MIN_PASSWORD_LENGTH } from "./authController.js";
+import { isAiAdmin } from "../middlewares/adminMiddleware.js";
 import { setOnlineVisibility } from "../socket/index.js";
 
 export const authMe = async (req, res) => {
@@ -11,6 +12,8 @@ export const authMe = async (req, res) => {
 
     return res.status(200).json({
       user,
+      // frontend dùng để hiện link trang chi phí AI; API admin vẫn tự kiểm tra quyền
+      isAiAdmin: isAiAdmin(user),
     });
   } catch (error) {
     console.error("Lỗi khi gọi authMe", error);

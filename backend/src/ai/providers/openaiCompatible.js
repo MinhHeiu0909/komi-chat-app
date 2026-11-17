@@ -11,8 +11,9 @@ const DONE = Symbol("done");
  *   data: {"choices":[{"delta":{"content":"Xin"}}]}
  *   data: [DONE]
  * Trả về đoạn chữ, DONE, hoặc null (dòng trống, comment ": ping", delta không có chữ).
+ * Sự kiện có `usage` (số token, thường ở cuối luồng) thì gọi onUsage.
  */
-const parseSseLine = (line) => {
+const parseSseLine = (line, onUsage) => {
   if (!line.startsWith("data:")) return null;
   const data = line.slice(5).trim();
   if (!data) return null;
@@ -34,18 +35,20 @@ const parseSseLine = (line) => {
     });
   }
 
+  if (json.usage) onUsage?.(json.usage);
   return json.choices?.[0]?.delta?.content || null;
 };
 
 /**
  * Gọi API chat completions chuẩn OpenAI (Gemini, Groq, OpenAI...) bằng fetch có sẵn của Node.
  * Không tự gọi lại khi lỗi.
+ * onUsage({ prompt_tokens, completion_tokens }) được gọi nếu nhà cung cấp báo số token.
  */
 export const createOpenAICompatibleProvider = ({ baseUrl, apiKey, model, timeoutMs = DEFAULT_TIMEOUT_MS }) => {
   const url = `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
 
   return {
-    async *streamChat({ messages, signal } = {}) {
+    async *streamChat({ messages, signal, onUsage } = {}) {
       // internal: dùng cho timeout và để huỷ request khi bên gọi ngừng đọc giữa chừng
       const internal = new AbortController();
       const fetchSignal = signal ? AbortSignal.any([signal, internal.signal]) : internal.signal;
@@ -70,7 +73,8 @@ export const createOpenAICompatibleProvider = ({ baseUrl, apiKey, model, timeout
             Accept: "text/event-stream",
             ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
           },
-          body: JSON.stringify({ model, messages, stream: true }),
+          // include_usage: xin nhà cung cấp gửi số token ở cuối luồng (để theo dõi chi phí)
+          body: JSON.stringify({ model, messages, stream: true, stream_options: { include_usage: true } }),
           signal: fetchSignal,
         });
 
@@ -86,14 +90,14 @@ export const createOpenAICompatibleProvider = ({ baseUrl, apiKey, model, timeout
           const lines = buffer.split(/\r?\n/);
           buffer = lines.pop();
           for (const line of lines) {
-            const piece = parseSseLine(line);
+            const piece = parseSseLine(line, onUsage);
             if (piece === DONE) return;
             if (piece) yield piece;
           }
         }
 
         // luồng đóng mà không có [DONE]: xử lý nốt phần còn lại
-        const piece = parseSseLine(buffer + decoder.decode());
+        const piece = parseSseLine(buffer + decoder.decode(), onUsage);
         if (piece && piece !== DONE) yield piece;
       } catch (err) {
         // người hỏi tự dừng: ném lại lỗi abort gốc, không coi là lỗi của LLM

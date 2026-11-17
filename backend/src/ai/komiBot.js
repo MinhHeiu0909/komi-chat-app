@@ -9,6 +9,7 @@ import { createMessageAndEmit } from "../utils/messageHelper.js";
 import { buildKomiPrompt, prepareSummary } from "./prompt.js";
 import { llm, LLMError } from "./llm.js";
 import { registerStream, unregisterStream } from "./streams.js";
+import { AI_CALL_KIND } from "./usageLog.js";
 import { quotaExceededText, refundQuota, takeQuota } from "./quota.js";
 
 /**
@@ -125,8 +126,18 @@ export const STOPPED_NOTE = "_(Đã dừng)_";
  *   dựng prompt (chỉ gọi khi AI bật); footnote: dòng thêm vào cuối câu trả lời (vd. tra cứu lỗi)
  * @param {string} [opts.prefix]       chữ cố định đứng đầu câu trả lời (vd. tiêu đề bản tóm tắt)
  * @param {object} [opts.replyTo]
+ * @param {string} [opts.kind]         loại lời gọi để ghi chi phí (AI_CALL_KIND.CHAT / SUMMARY)
  */
-const streamBotReply = async ({ conversation, bot, askerId, quota, buildMessages, prefix = "", replyTo }) => {
+const streamBotReply = async ({
+  conversation,
+  bot,
+  askerId,
+  quota,
+  buildMessages,
+  prefix = "",
+  replyTo,
+  kind = AI_CALL_KIND.CHAT,
+}) => {
   const conversationId = conversation._id.toString();
   const botId = bot._id.toString();
 
@@ -148,7 +159,8 @@ const streamBotReply = async ({ conversation, bot, askerId, quota, buildMessages
       }
       const built = await buildMessages();
       const messages = Array.isArray(built) ? built : built.messages;
-      for await (const token of llm.streamChat({ messages, signal: controller.signal })) {
+      const usage = { kind, userId: askerId };
+      for await (const token of llm.streamChat({ messages, signal: controller.signal, usage })) {
         text += token;
         io.to(conversationId).emit("ai:token", { conversationId, streamId, token });
       }
@@ -277,6 +289,7 @@ export const summarizeUnread = async (conversation, user) => {
     quota,
     buildMessages: async () => messages,
     prefix: `**Tóm tắt ${count} tin chưa đọc trong ${label}**\n\n`,
+    kind: AI_CALL_KIND.SUMMARY,
   }).catch((error) => console.error("Lỗi khi Komi AI tóm tắt:", error));
 
   return { conversationId: botChat._id.toString(), count };

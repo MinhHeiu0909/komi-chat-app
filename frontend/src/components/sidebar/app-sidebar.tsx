@@ -11,7 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { FileText, Moon, Sun } from "lucide-react";
+import { ChartColumn, FileText, Moon, Sun } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { Switch } from "../ui/switch";
 import CreateNewChat from "../chat/CreateNewChat";
@@ -84,6 +84,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <span>Tài liệu chung</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {/* chỉ admin (AI_ADMIN_USERNAMES) thấy; API admin vẫn tự kiểm tra quyền */}
+              {user?.isAiAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link to="/admin/ai-usage" />}
+                    isActive={pathname === "/admin/ai-usage"}
+                  >
+                    <ChartColumn />
+                    <span>Chi phí AI</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

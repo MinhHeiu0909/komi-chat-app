@@ -7,6 +7,7 @@ import SharedDocument from "../../models/SharedDocument.js";
 import User from "../../models/User.js";
 import { embeddings } from "../embeddings.js";
 import { LLM_ERROR } from "../errors.js";
+import { AI_CALL_KIND } from "../usageLog.js";
 import {
   buildMessageWindows,
   chunkFilePages,
@@ -226,7 +227,11 @@ export const embedPending = async ({ limit, signal } = {}) => {
     .lean();
   if (chunks.length === 0) return 0;
 
-  const vectors = await embeddings.embed({ texts: chunks.map(embeddingInput), signal });
+  const vectors = await embeddings.embed({
+    texts: chunks.map(embeddingInput),
+    signal,
+    usage: { kind: AI_CALL_KIND.EMBEDDING_INDEX }, // việc của hệ thống, không thuộc user nào
+  });
   const embeddedAt = new Date();
   await KnowledgeChunk.bulkWrite(
     chunks.map((chunk, i) => ({

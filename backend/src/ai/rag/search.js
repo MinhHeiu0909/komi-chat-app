@@ -2,6 +2,7 @@ import Conversation from "../../models/Conversation.js";
 import User from "../../models/User.js";
 import { embeddings } from "../embeddings.js";
 import { vectorSearch } from "./vectorStore.js";
+import { AI_CALL_KIND } from "../usageLog.js";
 
 export const DEFAULT_K = 5;
 
@@ -29,9 +30,13 @@ export const allowedConversationIds = async ({ userId, conversationId }) => {
 };
 
 /** Tìm trong các conversation đã được kiểm tra quyền (và kho chung nếu includeShared). */
-export const searchWithin = async ({ conversationIds, includeShared = true, query, k = DEFAULT_K, signal }) => {
+export const searchWithin = async ({ conversationIds, includeShared = true, query, k = DEFAULT_K, signal, userId }) => {
   if (conversationIds.length === 0 && !includeShared) return [];
-  const [vector] = await embeddings.embed({ texts: [query], signal });
+  const [vector] = await embeddings.embed({
+    texts: [query],
+    signal,
+    usage: { kind: AI_CALL_KIND.EMBEDDING_SEARCH, userId: userId ?? null },
+  });
   return vectorSearch({ vector, conversationIds, includeShared, k });
 };
 
@@ -43,5 +48,5 @@ export const searchWithin = async ({ conversationIds, includeShared = true, quer
 export const searchKnowledge = async ({ userId, conversationId, query, k = DEFAULT_K, signal }) => {
   const conversationIds = await allowedConversationIds({ userId, conversationId });
   if (!conversationIds) return [];
-  return searchWithin({ conversationIds, includeShared: true, query, k, signal });
+  return searchWithin({ conversationIds, includeShared: true, query, k, signal, userId });
 };
