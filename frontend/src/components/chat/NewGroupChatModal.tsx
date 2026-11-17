@@ -85,7 +85,7 @@ const NewGroupChatModal = () => {
 
       <DialogContent className="sm:max-w- border-none">
         <DialogHeader>
-          <DialogTitle className="capitalize">tạo nhóm chat mới</DialogTitle>
+          <DialogTitle>Tạo nhóm chat mới</DialogTitle>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>

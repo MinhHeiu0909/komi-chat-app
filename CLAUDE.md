@@ -95,7 +95,7 @@ cd frontend && npm run build
 **Việc tiếp theo (cập nhật 2026-11-17) — đọc trước khi bắt đầu phiên mới:**
 
 1. Nhánh **`phase-5-polish`** (tách từ `main` sau PR #5). Đã commit: cấu hình chạy dev (`.claude/launch.json`); sửa 2 lỗi UX chủ repo báo (danh sách bạn bè tự đóng khi chọn người; tô vàng từ khoá ở kết quả tìm tin và trong tin vừa nhảy tới, xem `docs/PROGRESS.md`).
-2. Chủ repo muốn **làm lại giao diện frontend** (thấy còn xấu) trước khi vào các việc Giai đoạn 5 bên dưới. Hỏi hướng thiết kế trước khi sửa.
+2. **Làm lại giao diện frontend** (chủ repo chọn: gọn kiểu công sở, làm toàn bộ theo từng phần, mỗi phần một commit). Phần 1 (bộ màu trung tính + một màu nhấn chàm, bỏ gradient/kính mờ/hiệu ứng nảy, chữ viết hoa kiểu câu) đã commit. **Tạm dừng** (2026-11-17): chủ repo tìm hiểu thêm skill build frontend rồi mới quyết làm tiếp. Còn lại: phần 2 thanh bên (avatar màu, thẻ có viền → danh sách phẳng), phần 3 khung chat (bong bóng tin nhận, đầu khung chat, ô nhập), phần 4 trang đăng nhập + Tài liệu chung.
 3. **Trước khi viết code Giai đoạn 5, hỏi chủ repo** (đề xuất phương án kèm khuyến nghị, như các giai đoạn trước):
    - Theo dõi chi phí: ghi số token mỗi lần gọi LLM/embedding (provider chưa đọc `usage`; khi streaming cần `stream_options.include_usage`), lưu ở đâu, xem ở đâu.
    - Chống prompt injection: phạm vi (tin nhắn, file, kho chung đã là khối dữ liệu riêng), có thêm bước kiểm tra nào, có bộ câu thử injection không.
