@@ -333,6 +333,12 @@
     animation: replyTargetFlash 1.5s ease-out;
   }
 
+  /* Từ khoá trong tin vừa nhảy tới từ kết quả tìm kiếm (lib/messageJump.ts) */
+  ::highlight(search-hit) {
+    background-color: #fde047;
+    color: #1c1917;
+  }
+
   @keyframes replyTargetFlash {
     0%,
     40% {

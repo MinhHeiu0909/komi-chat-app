@@ -5,12 +5,13 @@ import { Card } from "../ui/card";
 import UserAvatar from "../chat/UserAvatar";
 import { useChatStore } from "@/stores/useChatStore";
 
-const FriendListModal = () => {
+const FriendListModal = ({ onSelected }: { onSelected?: () => void }) => {
   const { friends } = useFriendStore();
   const { createConversation } = useChatStore();
 
   const handleAddConversation = async (friendId: string) => {
     await createConversation("direct", "", [friendId]);
+    onSelected?.();
   };
 
   return (

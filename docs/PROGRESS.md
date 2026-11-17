@@ -142,6 +142,14 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Giới hạn: bộ dữ liệu nhỏ và dễ (33 đoạn), recall@6 chạm trần ở mọi cấu hình. Chưa so: tiền tố nhiệm vụ của Gemini, model embedding khác.
   - `npm test` backend 176/176.
 
+## Giai đoạn 5 — Hoàn thiện (nhánh `phase-5-polish`)
+
+- **Thử Komi AI có tra cứu trên giao diện (2026-11-17):** chạy bằng Docker. Lỗi "Komi AI đang tắt" do thiếu `.env` ở thư mục gốc (Docker không đọc `backend/.env`); sau đó lỗi "đang gặp sự cố" do `LLM_API_KEY` còn chữ mẫu có dấu (header HTTP không nhận ký tự ngoài Latin-1, log: `Cannot convert argument to a ByteString`). Sửa `.env` xong: hỏi "Link bản staging ở đâu?" trong chat riêng với Komi → đúng link, có nguồn nhóm "Đồ án Komi".
+- **Sửa 2 lỗi UX chủ repo báo (2026-11-17):**
+  - "Gửi tin nhắn mới": chọn một người thì danh sách bạn bè tự đóng sau khi tạo xong cuộc trò chuyện (`CreateNewChat` điều khiển `open` của Dialog, `FriendListModal` nhận `onSelected`).
+  - Tìm tin: từ khoá được in đậm, tô nền ở danh sách kết quả; bấm kết quả thì từ khoá trong tin vừa nhảy tới được tô vàng (CSS Custom Highlight API, không sửa DOM do React quản lý; trình duyệt không hỗ trợ thì chỉ còn viền nháy). So khớp không phân biệt dấu giống backend (`src/lib/textSearch.ts`). Chỉ một tin được tô tại một thời điểm.
+  - `npm run build` frontend qua, lint các file sửa sạch. Đã thử trên trình duyệt (Claude và chủ repo). Chưa thử: giao diện tối, Firefox < 140.
+
 ## Lộ trình ban đầu (đã thay ngày 2026-11-11)
 
 Giữ lại để tham khảo. Lý do thay đổi: `docs/DECISIONS.md`.
