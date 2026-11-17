@@ -8,17 +8,19 @@ import {
 } from "../controllers/userController.js";
 import { upload } from "../middlewares/uploadMiddleware.js";
 import { rateLimit } from "../middlewares/rateLimit.js";
+import { rejectDemoAccount } from "../middlewares/demoMiddleware.js";
 
 const router = express.Router();
 
 router.get("/me", authMe);
-router.patch("/me", updateMe);
+router.patch("/me", rejectDemoAccount, updateMe);
 router.post(
   "/me/password",
+  rejectDemoAccount,
   rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: "Thử đổi mật khẩu quá nhiều lần, hãy thử lại sau" }),
   changePassword,
 );
 router.get("/search", searchUserByUsername);
-router.post("/uploadAvatar", upload.single("file"), uploadAvatar);
+router.post("/uploadAvatar", rejectDemoAccount, upload.single("file"), uploadAvatar);
 
 export default router;

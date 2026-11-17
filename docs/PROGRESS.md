@@ -164,6 +164,14 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - **Đo với Gemini thật** (`gemini-3.5-flash-lite`, mỗi câu 2 lần): trước khi sửa 4/30 tấn công thành công (thẻ đóng NFD; hỏi về tin chứa lệnh thì làm theo luôn) → sau khi sửa 0/30, trả lời đúng 30/30, đối chứng 4/4. Khoảng 100 lượt gọi Gemini (3 lần đo + thử).
   - Phát hiện thêm: một câu trả lời bị cắt giữa chừng ("MẸO 1: Tiêu đề email ngắn gọn, rõ ràng và"): tái hiện được lỗi còn treo "câu trả lời bị cắt" (provider chưa đọc `finish_reason`).
   - Chưa thử: trên giao diện (prompt đổi nhưng luồng app không đổi).
+- **Việc 3 — chuẩn bị deploy công khai (2026-11-17):** thiết kế trong `docs/DECISIONS.md` (mục "deploy"), hướng dẫn từng bước `docs/DEPLOY.md`.
+  - `Dockerfile` (gốc, 2 stage: build frontend với `VITE_API_URL=/api`, chạy backend có `FRONTEND_DIST`), `.dockerignore`, `render.yaml`.
+  - Backend: `app.js` phục vụ frontend + trả `index.html` cho các trang React (trước `protectedRoute`; `/api`, `/socket.io` không bị nuốt; `assets/` cache lâu, `index.html` no-cache); `config/envDefaults.js` (`CLIENT_URL` ← `RENDER_EXTERNAL_URL`); `quota.js` trần chung `AI_GLOBAL_DAILY_LIMIT` + `quotaMessage`; `demoMiddleware.js` khoá sửa hồ sơ / mật khẩu / avatar của `DEMO_USERNAMES`.
+  - Frontend: socket nối tới chính trang khi không đặt `VITE_SOCKET_URL`; nút "Điền tài khoản demo" ở trang đăng nhập khi build có `VITE_DEMO_*`.
+  - Test: `frontendStatic.test.js` (3), thêm vào `quota.test.js` (3) và `profile.test.js` (1). `npm test` backend 201/201; `npm run build` frontend qua.
+  - **Đã thử image deploy trên máy** (Docker, nối MongoDB local, Gemini thật, chỉ đặt `RENDER_EXTERNAL_URL`): health OK, `/documents` trả trang React, nút demo điền và đăng nhập được, tải lại trang vẫn giữ phiên, Komi AI trả lời qua socket có nguồn, console không lỗi.
+  - Chưa làm (chủ repo làm theo `docs/DEPLOY.md`): tạo Atlas M0, Render, seed lên Atlas, deploy thật.
+
 
 
 
