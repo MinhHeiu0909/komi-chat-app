@@ -27,7 +27,7 @@ Phần bạn tự làm: tạo tài khoản, điền khoá bí mật. Không đư
 
 ## 2. Dữ liệu demo
 
-Chạy **trên máy bạn**, trỏ vào Atlas (biến trong lệnh được ưu tiên hơn `backend/.env`):
+Chạy **trên máy bạn**, trỏ vào Atlas. Biến và lệnh phải nằm trên **cùng một dòng** (gán biến ở dòng riêng mà không `export` thì script không thấy, sẽ đọc `backend/.env` và chạy vào DB local):
 
 ```bash
 cd backend && MONGODB_CONNECTIONSTRING="<chuỗi kết nối Atlas>" npm run seed
@@ -39,7 +39,7 @@ Dữ liệu demo bị người thử làm bừa thì chạy lại với `--reset
 
 ## 3. Render
 
-1. Đẩy nhánh lên GitHub và merge vào `main` (Blueprint deploy nhánh `main`, xem `render.yaml`).
+1. Đẩy nhánh lên GitHub (`git push`, kiểm tra không còn commit nào chưa push) và merge vào `main`: Blueprint đọc `render.yaml` trên nhánh `main`, thiếu file thì Render báo "Blueprint file render.yaml not found on main branch".
 2. Đăng ký tại [render.com](https://render.com) bằng GitHub, chọn **New → Blueprint**, chọn repo này. Render đọc `render.yaml` và hỏi các biến `sync: false`:
 
    | Biến | Giá trị |
