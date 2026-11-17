@@ -40,6 +40,8 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
       AI_DAILY_LIMIT: ${AI_DAILY_LIMIT:-}
+      AI_GLOBAL_DAILY_LIMIT: ${AI_GLOBAL_DAILY_LIMIT:-}
+      DEMO_USERNAMES: ${DEMO_USERNAMES:-}
       SHARED_DOC_DAILY_LIMIT: ${SHARED_DOC_DAILY_LIMIT:-}
       # Trang chi phí AI: username được xem (phân cách bằng dấu phẩy) và giá ước tính (USD / 1 triệu token)
       AI_ADMIN_USERNAMES: ${AI_ADMIN_USERNAMES:-}

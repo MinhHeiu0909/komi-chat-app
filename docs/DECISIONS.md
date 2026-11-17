@@ -168,6 +168,16 @@ Nhắc việc, bình chọn, fine-tune mô hình kiểm duyệt (PhoBERT), BullM
 - **Không đổi cấu trúc lịch sử nhóm** (vẫn là các lượt `user` dạng "Tên: nội dung"): đã cân nhắc gom tin của người khác vào một khối dữ liệu riêng, nhưng mọi câu tấn công qua tin nhóm đều chặn được sau khi sửa prompt; đổi cấu trúc là thay đổi lớn hơn, để dành nếu bộ thử sau này cho thấy cần.
 - **Lớp bảo vệ có sẵn từ trước, không phụ thuộc model:** dữ liệu đưa vào prompt đã lọc theo quyền người hỏi (lệnh giấu không đọc được dữ liệu người hỏi không được xem); ảnh trong markdown không được tải (không lộ dữ liệu qua URL ảnh); link mở tab mới với `noopener noreferrer nofollow`.
 
+## 2026-11-17 — Giai đoạn 5: deploy công khai
+
+- **Một web service Render (free, không cần thẻ), backend phục vụ luôn frontend đã build** (`Dockerfile` ở thư mục gốc, `FRONTEND_DIST`). Lý do: frontend và API cùng địa chỉ nên cookie refresh không thành cookie bên thứ ba (Safari chặn → bị đăng xuất mỗi lần tải lại), không cần CORS, socket nối tới chính trang. Đánh đổi: gói free ngủ sau 15 phút, người mở đầu tiên chờ ~1 phút với trang trắng (phương án frontend tĩnh riêng mở trang ngay nhưng vướng cookie). Không dùng dịch vụ ping giữ thức.
+- **Không chọn:** Fly.io, Railway (cần thẻ / chỉ là dùng thử); Koyeb (nguồn mâu thuẫn về thẻ, 2026-11).
+- **Atlas M0** vùng Singapore (cùng Render), Network Access `0.0.0.0/0` vì Render free không có IP cố định. Seed chạy từ máy chủ repo trỏ vào Atlas (script seed chặn `NODE_ENV=production`).
+- **Chặn lạm dụng:** trần chung `AI_GLOBAL_DAILY_LIMIT` (bộ đếm chung trong `AiUsage` với userId cố định; hết lượt chung thì trả lại lượt riêng vừa lấy), hạ `AI_DAILY_LIMIT` xuống 10, `SHARED_DOC_DAILY_LIMIT` 3. Đăng ký vẫn mở (đã giới hạn 10 lần/giờ/IP).
+- **Tài khoản demo dùng chung** (`DEMO_USERNAMES`): không đổi được mật khẩu / hồ sơ / avatar (403), để người sau vẫn đăng nhập được; trang đăng nhập có nút điền sẵn (`VITE_DEMO_USERNAME` / `VITE_DEMO_PASSWORD`, truyền vào build). Đánh đổi: người dùng chung tài khoản demo thấy tin của nhau; bừa thì chạy lại `seed --reset`.
+- **`CLIENT_URL` tự lấy `RENDER_EXTERNAL_URL`** khi để trống (`src/config/envDefaults.js`, nạp ngay sau `dotenv/config`), nên không cần biết trước địa chỉ service khi tạo.
+- Cấu hình hạ tầng ghi trong `render.yaml` (Blueprint); khoá bí mật để `sync: false`, Render hỏi khi tạo.
+
 ## Chưa quyết
 
 - (Chưa có.)

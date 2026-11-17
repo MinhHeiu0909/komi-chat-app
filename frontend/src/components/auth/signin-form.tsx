@@ -22,10 +22,19 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
   });
+
+  // Bản demo công khai: điền sẵn tài khoản dùng chung (đặt lúc build, xem docs/DEPLOY.md)
+  const demoUsername = import.meta.env.VITE_DEMO_USERNAME;
+  const demoPassword = import.meta.env.VITE_DEMO_PASSWORD;
+  const fillDemo = () => {
+    setValue("username", demoUsername, { shouldValidate: true });
+    setValue("password", demoPassword, { shouldValidate: true });
+  };
 
   const onSubmit = async (data: SignInFormValues) => {
     const { username, password } = data;
@@ -114,6 +123,19 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
               >
                 Đăng nhập
               </Button>
+
+              {demoUsername && demoPassword && (
+                <div className="rounded-md border bg-muted/50 p-3 text-sm space-y-2">
+                  <p className="text-muted-foreground">
+                    Dùng thử với dữ liệu mẫu: <span className="font-medium text-foreground">{demoUsername}</span> /{" "}
+                    <span className="font-medium text-foreground">{demoPassword}</span>. Tài khoản demo dùng chung, ai
+                    cũng thấy tin nhắn; muốn riêng tư hãy đăng ký. Lần đầu mở có thể chờ khoảng 1 phút để máy chủ khởi động.
+                  </p>
+                  <Button type="button" variant="outline" className="w-full" onClick={fillDemo}>
+                    Điền tài khoản demo
+                  </Button>
+                </div>
+              )}
 
               <div className="text-center text-sm">
                 Chưa có tài khoản?{" "}

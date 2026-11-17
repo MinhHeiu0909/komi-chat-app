@@ -7,7 +7,8 @@ import { useChatStore } from "./useChatStore";
 import { refreshAccessToken } from "@/lib/axios";
 import { toast } from "sonner";
 
-const baseURL = import.meta.env.VITE_SOCKET_URL;
+// để trống khi frontend và backend cùng địa chỉ (bản deploy một service): kết nối tới chính trang đang mở
+const baseURL = import.meta.env.VITE_SOCKET_URL || undefined;
 
 const AUTH_ERROR_CODES = ["TOKEN_INVALID", "TOKEN_MISSING"];
 
@@ -64,13 +65,14 @@ export const useSocketStore = create<SocketState>((set, get) => {
 
       if (existingSocket) return; // tránh tạo nhiều socket
 
-      const socket: Socket = io(baseURL, {
+      const options = {
         // Hàm thay vì giá trị cố định: mỗi lần (re)connect sẽ lấy access token
         // mới nhất. Trước đây token được chốt lúc tạo socket nên sau 30 phút
         // mọi lần reconnect đều bị server từ chối.
-        auth: (cb) => cb({ token: useAuthStore.getState().accessToken }),
+        auth: (cb: (data: object) => void) => cb({ token: useAuthStore.getState().accessToken }),
         transports: ["websocket"],
-      });
+      };
+      const socket: Socket = baseURL ? io(baseURL, options) : io(options);
 
       set({ socket });
 

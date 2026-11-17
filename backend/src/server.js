@@ -2,6 +2,7 @@
 // nên nếu gọi dotenv.config() ở thân file thì socket/index.js và app.js
 // đã đọc process.env (CLIENT_URL...) khi biến môi trường chưa được nạp.
 import "dotenv/config";
+import "./config/envDefaults.js"; // CLIENT_URL mặc định trên Render, trước khi app.js đọc
 
 import { v2 as cloudinary } from "cloudinary";
 import { connectDB } from "./libs/db.js";

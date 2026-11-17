@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import AiUsage from "../models/AiUsage.js";
 
 /**
@@ -19,6 +20,25 @@ export const vnDay = (now = new Date()) => new Date(now.getTime() + VN_OFFSET_MS
 
 export const quotaExceededText = (limit) =>
   `Bạn đã dùng hết ${limit} lượt hỏi Komi AI hôm nay. Lượt hỏi được tính lại lúc 0h (giờ Việt Nam).`;
+
+/**
+ * Trần chung cho cả app mỗi ngày (AI_GLOBAL_DAILY_LIMIT): nhiều tài khoản cộng lại cũng không
+ * dùng hết hạn mức free của nhà cung cấp. Để trống / sai = không giới hạn chung.
+ * Bộ đếm chung nằm trong AiUsage với một userId cố định không thuộc user nào.
+ */
+export const GLOBAL_QUOTA_ID = new mongoose.Types.ObjectId("000000000000000000000000");
+
+export const globalDailyLimit = () => {
+  const value = Number(process.env.AI_GLOBAL_DAILY_LIMIT);
+  return Number.isInteger(value) && value > 0 ? value : null;
+};
+
+export const globalQuotaExceededText =
+  "Komi AI đã dùng hết lượt chung của cả app hôm nay (bản demo chạy bằng hạn mức miễn phí). Thử lại sau 0h (giờ Việt Nam) nhé.";
+
+/** Câu báo khi takeQuota trả ok: false. */
+export const quotaMessage = (quota) =>
+  quota.reason === "global" ? globalQuotaExceededText : quotaExceededText(quota.limit);
 
 /**
  * Lấy một lượt trong bộ đếm theo ngày `Model` (AiUsage, DocumentUploadUsage...).
@@ -46,8 +66,27 @@ export const takeDailyCount = async (Model, userId, limit, { now = new Date() } 
 export const refundDailyCount = (Model, userId, day) =>
   Model.updateOne({ userId, day, count: { $gt: 0 } }, { $inc: { count: -1 } });
 
-/** Lấy một lượt hỏi Komi AI (AI_DAILY_LIMIT lượt/ngày). */
-export const takeQuota = (userId, { now = new Date() } = {}) => takeDailyCount(AiUsage, userId, dailyLimit(), { now });
+/**
+ * Lấy một lượt hỏi Komi AI: của người hỏi (AI_DAILY_LIMIT lượt/ngày) rồi của cả app (AI_GLOBAL_DAILY_LIMIT).
+ * Hết lượt chung thì trả lại lượt của người hỏi.
+ * @returns {Promise<{ ok: boolean, day: string, limit: number, reason?: "user" | "global", global?: boolean }>}
+ */
+export const takeQuota = async (userId, { now = new Date() } = {}) => {
+  const mine = await takeDailyCount(AiUsage, userId, dailyLimit(), { now });
+  if (!mine.ok) return { ...mine, reason: "user" };
 
-// Trả lại lượt khi lỗi không phải do người hỏi (nhà cung cấp lỗi, hết hạn mức chung...)
-export const refundQuota = (userId, day) => refundDailyCount(AiUsage, userId, day);
+  const limit = globalDailyLimit();
+  if (!limit) return { ...mine, global: false };
+  const all = await takeDailyCount(AiUsage, GLOBAL_QUOTA_ID, limit, { now });
+  if (!all.ok) {
+    await refundDailyCount(AiUsage, userId, mine.day);
+    return { ok: false, day: mine.day, limit, reason: "global" };
+  }
+  return { ...mine, global: true };
+};
+
+// Trả lại lượt khi lỗi không phải do người hỏi (nhà cung cấp lỗi...), cả lượt chung nếu đã lấy
+export const refundQuota = async (userId, quota) => {
+  await refundDailyCount(AiUsage, userId, quota.day);
+  if (quota.global) await refundDailyCount(AiUsage, GLOBAL_QUOTA_ID, quota.day);
+};

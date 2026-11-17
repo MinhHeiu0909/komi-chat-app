@@ -189,3 +189,25 @@ describe("Đổi mật khẩu", () => {
     assert.equal((await signIn("matkhau-moi")).status, 200);
   });
 });
+
+describe("Tài khoản demo (DEMO_USERNAMES)", () => {
+  test("không đổi được hồ sơ, mật khẩu, avatar; tài khoản khác vẫn đổi được", async () => {
+    process.env.DEMO_USERNAMES = " BINH , khac ";
+    try {
+      const profile = await patchMe(B, { bio: "Đổi thử" }).expect(403);
+      assert.match(profile.body.message, /Tài khoản demo/);
+      await request(app)
+        .post("/api/users/me/password")
+        .set(auth(B))
+        .send({ currentPassword: "x", newPassword: "matkhaumoi123" })
+        .expect(403);
+      await request(app).post("/api/users/uploadAvatar").set(auth(B)).expect(403);
+      assert.equal((await models.User.findById(B._id)).bio ?? "", "");
+
+      await patchMe(A, { bio: "Vẫn đổi được" }).expect(200);
+    } finally {
+      delete process.env.DEMO_USERNAMES;
+    }
+    await patchMe(B, { bio: "Hết là demo thì đổi được" }).expect(200);
+  });
+});

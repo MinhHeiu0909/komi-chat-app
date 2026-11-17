@@ -10,7 +10,7 @@ import { buildKomiPrompt, prepareSummary } from "./prompt.js";
 import { llm, LLMError } from "./llm.js";
 import { registerStream, unregisterStream } from "./streams.js";
 import { AI_CALL_KIND } from "./usageLog.js";
-import { quotaExceededText, refundQuota, takeQuota } from "./quota.js";
+import { quotaMessage, refundQuota, takeQuota } from "./quota.js";
 
 /**
  * Komi AI là một user hệ thống (isBot: true):
@@ -187,7 +187,7 @@ const streamBotReply = async ({
 
   // lỗi phía nhà cung cấp / server thì không tính lượt (dừng giữa chừng vẫn tính)
   if (errorText && quota) {
-    await refundQuota(askerId, quota.day).catch((error) => console.error("Lỗi khi hoàn lượt hỏi AI", error));
+    await refundQuota(askerId, quota).catch((error) => console.error("Lỗi khi hoàn lượt hỏi AI", error));
   }
 
   // Lưu phần đã trả lời (kể cả khi bị dừng / lỗi giữa chừng). Dừng trước khi có chữ nào thì không lưu.
@@ -225,7 +225,7 @@ const respond = async (conversation, trigger, bot) => {
   const quota = llm.isReady() ? await takeQuota(askerId) : null;
   if (quota && !quota.ok) {
     // báo riêng người hỏi (room cá nhân); không lưu tin, bot không vào nhóm
-    io.to(askerId).emit("ai:error", { conversationId, message: quotaExceededText(quota.limit) });
+    io.to(askerId).emit("ai:error", { conversationId, message: quotaMessage(quota) });
     return;
   }
 
@@ -277,7 +277,7 @@ export const summarizeUnread = async (conversation, user) => {
   const count = Math.min(unread, MAX_SUMMARY_MESSAGES);
 
   const quota = await takeQuota(userId);
-  if (!quota.ok) return fail(429, quotaExceededText(quota.limit));
+  if (!quota.ok) return fail(429, quotaMessage(quota));
 
   const { conversation: botChat } = await ensureKomiConversation(userId);
   const { label, messages } = await prepareSummary({ conversation, count, user });

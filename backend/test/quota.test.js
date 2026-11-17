@@ -19,6 +19,7 @@ before(async () => {
 
 afterEach(async () => {
   delete process.env.AI_DAILY_LIMIT;
+  delete process.env.AI_GLOBAL_DAILY_LIMIT;
   await AiUsage.deleteMany({});
 });
 
@@ -45,9 +46,20 @@ describe("hạn mức hỏi AI", () => {
     const today = new Date("2026-11-12T03:00:00Z");
     const tomorrow = new Date("2026-11-12T17:30:00Z"); // 0h30 ngày 13 giờ VN
 
-    assert.deepEqual(await quota.takeQuota(A._id, { now: today }), { ok: true, day: "2026-11-12", used: 1, limit: 2 });
+    assert.deepEqual(await quota.takeQuota(A._id, { now: today }), {
+      ok: true,
+      day: "2026-11-12",
+      used: 1,
+      limit: 2,
+      global: false,
+    });
     assert.equal((await quota.takeQuota(A._id, { now: today })).used, 2);
-    assert.deepEqual(await quota.takeQuota(A._id, { now: today }), { ok: false, day: "2026-11-12", limit: 2 });
+    assert.deepEqual(await quota.takeQuota(A._id, { now: today }), {
+      ok: false,
+      day: "2026-11-12",
+      limit: 2,
+      reason: "user",
+    });
 
     assert.equal((await quota.takeQuota(B._id, { now: today })).ok, true);
     assert.equal((await quota.takeQuota(A._id, { now: tomorrow })).ok, true);
@@ -69,11 +81,51 @@ describe("hạn mức hỏi AI", () => {
     const first = await quota.takeQuota(A._id);
     assert.equal((await quota.takeQuota(A._id)).ok, false);
 
-    await quota.refundQuota(A._id, first.day);
+    await quota.refundQuota(A._id, first);
     assert.equal((await quota.takeQuota(A._id)).ok, true);
 
-    await quota.refundQuota(A._id, first.day);
-    await quota.refundQuota(A._id, first.day);
+    await quota.refundQuota(A._id, first);
+    await quota.refundQuota(A._id, first);
     assert.equal((await AiUsage.findOne({ userId: A._id })).count, 0);
+  });
+
+  test("AI_GLOBAL_DAILY_LIMIT: để trống thì không giới hạn chung; giá trị sai cũng vậy", () => {
+    assert.equal(quota.globalDailyLimit(), null);
+    process.env.AI_GLOBAL_DAILY_LIMIT = "200";
+    assert.equal(quota.globalDailyLimit(), 200);
+    for (const bad of ["0", "-1", "abc", "1.5"]) {
+      process.env.AI_GLOBAL_DAILY_LIMIT = bad;
+      assert.equal(quota.globalDailyLimit(), null, bad);
+    }
+  });
+
+  test("trần chung: hết lượt chung thì từ chối mọi người, trả lại lượt riêng vừa lấy", async () => {
+    process.env.AI_DAILY_LIMIT = "5";
+    process.env.AI_GLOBAL_DAILY_LIMIT = "2";
+    assert.equal((await quota.takeQuota(A._id)).ok, true);
+    assert.equal((await quota.takeQuota(B._id)).ok, true);
+
+    const denied = await quota.takeQuota(A._id);
+    assert.equal(denied.ok, false);
+    assert.equal(denied.reason, "global");
+    assert.equal(quota.quotaMessage(denied), quota.globalQuotaExceededText);
+    // lượt riêng của A không bị tính cho lần bị từ chối
+    assert.equal((await AiUsage.findOne({ userId: A._id })).count, 1);
+    assert.equal((await AiUsage.findOne({ userId: quota.GLOBAL_QUOTA_ID })).count, 2);
+  });
+
+  test("trần chung: đồng thời không vượt; hoàn lượt trả cả lượt chung", async () => {
+    process.env.AI_GLOBAL_DAILY_LIMIT = "3";
+    const results = await Promise.all(
+      Array.from({ length: 8 }, (_, i) => quota.takeQuota(i % 2 ? A._id : B._id)),
+    );
+    const granted = results.filter((r) => r.ok);
+    assert.equal(granted.length, 3);
+    assert.equal((await AiUsage.findOne({ userId: quota.GLOBAL_QUOTA_ID })).count, 3);
+
+    const owner = results.findIndex((r) => r.ok) % 2 ? A._id : B._id;
+    await quota.refundQuota(owner, results.find((r) => r.ok));
+    assert.equal((await AiUsage.findOne({ userId: quota.GLOBAL_QUOTA_ID })).count, 2);
+    assert.equal((await quota.takeQuota(A._id)).ok, true);
   });
 });

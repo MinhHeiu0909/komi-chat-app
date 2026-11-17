@@ -1,0 +1,62 @@
+# Render Blueprint: bản demo công khai, một web service miễn phí (không cần thẻ).
+# Hướng dẫn từng bước: docs/DEPLOY.md
+# sync: false = Render hỏi giá trị khi tạo (khoá bí mật, không ghi vào git).
+services:
+  - type: web
+    name: komi
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      # Atlas M0: mongodb+srv://<user>:<mật khẩu>@<cluster>/komi?retryWrites=true&w=majority
+      - key: MONGODB_CONNECTIONSTRING
+        sync: false
+      - key: ACCESS_TOKEN_SECRET
+        generateValue: true
+      # CLIENT_URL để trống: tự lấy RENDER_EXTERNAL_URL (frontend cùng địa chỉ)
+      - key: TRUST_PROXY
+        value: "1"
+
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # Gemini free tier (không bật billing)
+      - key: LLM_PROVIDER
+        value: openai-compatible
+      - key: LLM_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta/openai/
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-3.5-flash-lite
+      - key: EMBEDDING_PROVIDER
+        value: openai-compatible
+      - key: EMBEDDING_MODEL
+        value: gemini-embedding-2
+
+      # Chặn lạm dụng hạn mức free
+      - key: AI_DAILY_LIMIT
+        value: "10"
+      - key: AI_GLOBAL_DAILY_LIMIT
+        value: "200"
+      - key: SHARED_DOC_DAILY_LIMIT
+        value: "3"
+
+      # Tài khoản demo (tạo bằng npm run seed): không đổi được mật khẩu / hồ sơ
+      - key: DEMO_USERNAMES
+        value: an.nguyen,binh,chi,dung,hoa
+      - key: VITE_DEMO_USERNAME
+        value: an.nguyen
+      - key: VITE_DEMO_PASSWORD
+        value: komi123
+
+      # Trang chi phí AI: username tài khoản riêng của bạn (không dùng tài khoản demo)
+      - key: AI_ADMIN_USERNAMES
+        sync: false

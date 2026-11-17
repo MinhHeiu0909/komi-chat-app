@@ -1,0 +1,12 @@
+# Dockerfile ở thư mục gốc (bản deploy một service)
+.git
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+backend/test
+eval
+samples
+docs
+.claude
