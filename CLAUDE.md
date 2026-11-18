@@ -96,11 +96,11 @@ cd frontend && npm run build
 
 - **Giai đoạn 5 — Hoàn thiện: đang làm** trên nhánh `phase-5-polish`; phần đã xong đã merge vào `main` (PR #6, PR #7, 2026-11-17). Đã có: sửa 2 lỗi UX, giao diện phần 1 (bộ màu), theo dõi chi phí AI (`AiCallLog`, trang `/admin/ai-usage`), chống prompt injection (bộ thử `eval/injection/`: 4/30 → 0/30 tấn công thành công), **bản demo công khai đang chạy: https://komi-nz7y.onrender.com** (Render free, Singapore; Atlas M0 cluster `komi-upgrade`, DB `komi`; tài khoản demo `an.nguyen` / `komi123`). Chi tiết: `docs/PROGRESS.md`, `docs/DECISIONS.md`, `docs/DEPLOY.md`.
 
-**Việc tiếp theo (cập nhật 2026-11-17, cuối ngày) — đọc trước khi bắt đầu phiên mới:**
+**Việc tiếp theo (cập nhật 2026-11-18) — đọc trước khi bắt đầu phiên mới:**
 
-1. **Chủ repo kiểm tra bản demo** (hẹn 2026-11-18) theo mục "4. Kiểm tra" của `docs/DEPLOY.md`: đăng nhập demo, tải lại trang vẫn giữ phiên, `@komi` trong nhóm "Đồ án Komi" trả lời có nguồn (chờ worker tạo embedding vài phút sau lần thức đầu), gửi file / tài liệu chung (Cloudinary). Lỗi tìm được thì sửa trước. Claude đã kiểm tra bằng lệnh (2026-11-17): `/api/health` ok, trang và file JS/CSS tải được, bundle có nút demo, API đăng nhập trả 401 với tài khoản sai (đã nối Atlas); **chưa** đăng nhập / hỏi Komi AI trên bản thật (trình duyệt của Claude chưa được phép mở trang).
-2. Việc nhỏ trên Render (chủ repo tự làm trong tab Environment, không cần sửa code): đăng ký tài khoản riêng trên bản demo rồi điền username đó vào `AI_ADMIN_USERNAMES` (đang để trống); tuỳ chọn điền `AI_PRICE_*` để trang chi phí AI ước tính tiền.
-3. **README** (việc cuối của Giai đoạn 5): hỏi chủ repo trước (ngôn ngữ: đề xuất tiếng Anh + `README.vi.md`; GIF demo do chủ repo quay; sơ đồ kiến trúc Mermaid; bảng eval RAG + injection từ `eval/README.md`; link demo ở trên). Xong README thì mở PR cuối của Giai đoạn 5.
+1. Chủ repo đã kiểm tra bản demo (2026-11-18): không lỗi.
+2. **README đã viết** (2026-11-18, chưa commit tới khi chủ repo duyệt): `README.md` tiếng Anh + `README.vi.md`, không GIF. Sau khi duyệt: commit, chủ repo push và mở **PR cuối của Giai đoạn 5**; xem sơ đồ Mermaid hiển thị đúng trên GitHub.
+3. Việc nhỏ trên Render (chủ repo tự làm trong tab Environment, không cần sửa code): đăng ký tài khoản riêng trên bản demo rồi điền username đó vào `AI_ADMIN_USERNAMES` (đang để trống); tuỳ chọn điền `AI_PRICE_*` để trang chi phí AI ước tính tiền.
 4. **Làm lại giao diện frontend: tạm dừng** sau phần 1 (chủ repo tìm hiểu thêm skill build frontend rồi mới quyết). Còn lại: phần 2 thanh bên (avatar màu, thẻ có viền → danh sách phẳng), phần 3 khung chat (bong bóng tin nhận, đầu khung chat, ô nhập), phần 4 trang đăng nhập + Tài liệu chung. Mỗi phần một commit, chủ repo duyệt rồi mới sang phần sau.
 
 Còn treo, làm khi chủ repo nhắc: thử PDF tiếng Việt thật (để file vào `samples/`); provider chưa đọc `finish_reason` (câu trả lời bị cắt giữa chữ; đã tái hiện một lần khi chạy `npm run eval:injection` ngày 2026-11-17, câu `control-asker-format`).
