@@ -51,6 +51,7 @@ flowchart LR
     AUTHZ --> BOT
     BOT --> RAG
     BOT --> PROV
+    BOT -- "ai:token / ai:done" --> WS
     RAG --> DB
     WORKER --> DB
     WORKER --> PROV
