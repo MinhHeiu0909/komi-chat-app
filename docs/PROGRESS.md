@@ -171,6 +171,17 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Test: `frontendStatic.test.js` (3), thêm vào `quota.test.js` (3) và `profile.test.js` (1). `npm test` backend 201/201; `npm run build` frontend qua.
   - **Đã thử image deploy trên máy** (Docker, nối MongoDB local, Gemini thật, chỉ đặt `RENDER_EXTERNAL_URL`): health OK, `/documents` trả trang React, nút demo điền và đăng nhập được, tải lại trang vẫn giữ phiên, Komi AI trả lời qua socket có nguồn, console không lỗi.
   - Chưa làm (chủ repo làm theo `docs/DEPLOY.md`): tạo Atlas M0, Render, seed lên Atlas, deploy thật.
+- **Việc 4 — deploy thật (2026-11-17):** chủ repo làm theo `docs/DEPLOY.md`.
+  - Atlas M0 (cluster `komi-upgrade`, DB `komi`, Network Access `0.0.0.0/0`, user `komi-app`); seed từ máy: 5 người dùng, 4 cuộc trò chuyện, 54 tin.
+  - Render Blueprint `komi-chat-app` từ `main` (PR #7) → web service `komi`: **https://komi-nz7y.onrender.com**.
+  - Vướng khi làm: (1) gán `MONGODB_CONNECTIONSTRING` ở dòng riêng không `export` nên seed chạy vào DB local; (2) PR #6 merge trước khi commit deploy được push nên `main` thiếu `render.yaml` → push rồi mở PR #7. Đã ghi vào `docs/DEPLOY.md` / `CLAUDE.md`.
+  - Claude kiểm tra bằng lệnh: `/api/health` ok (0,4 giây khi đang thức), `/signin` và file JS/CSS 200, bundle có nút "Điền tài khoản demo", `POST /api/auth/signin` sai tài khoản → 401. Chủ repo mở được trang ("ổn rồi"). Chưa kiểm tra kỹ trên bản thật: Komi AI có tra cứu, gửi file, trang chi phí AI.
+  - Chủ repo kiểm tra bản demo theo mục "4. Kiểm tra" của `docs/DEPLOY.md` (2026-11-18): không lỗi.
+- **Việc 5 — README (2026-11-18):** chủ repo chọn: `README.md` tiếng Anh + `README.vi.md`, không có GIF, thêm các phần "Quyết định kỹ thuật", "Giới hạn đã biết", "Chạy trên máy".
+  - Nội dung: link demo, tính năng, sơ đồ kiến trúc Mermaid + luồng một câu hỏi Komi AI, công nghệ, bảng eval RAG và prompt injection (số liệu từ `eval/README.md`), quyết định chính (tóm từ `docs/DECISIONS.md`), cách chạy, giới hạn (từ mục nợ kỹ thuật trong `CLAUDE.md`).
+  - Thay README cũ (tiếng Việt, mô tả lộ trình cũ "Komi AI đang làm").
+  - Chưa kiểm chứng: sơ đồ Mermaid hiển thị trên GitHub (chưa push).
+
 
 
 
