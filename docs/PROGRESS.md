@@ -181,6 +181,15 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Nội dung: link demo, tính năng, sơ đồ kiến trúc Mermaid + luồng một câu hỏi Komi AI, công nghệ, bảng eval RAG và prompt injection (số liệu từ `eval/README.md`), quyết định chính (tóm từ `docs/DECISIONS.md`), cách chạy, giới hạn (từ mục nợ kỹ thuật trong `CLAUDE.md`).
   - Thay README cũ (tiếng Việt, mô tả lộ trình cũ "Komi AI đang làm").
   - Chưa kiểm chứng: sơ đồ Mermaid hiển thị trên GitHub (chưa push).
+- **Làm lại giao diện phần 2 + 3 (2026-11-21 → 22, nhánh `phase-5-ui-chat`):** dùng skill `frontend-design`, chủ repo chọn từng phương án.
+  - Bộ màu "cổ vịt & nghệ" (`#0E5A63` / `#C98A1B`, token trong `index.css`; `--ai` cho Komi, `--wordmark` cho chữ Komi), font Be Vietnam Pro (Google Fonts), dark mode đủ tương phản (bong bóng tin nhận và ghi chú AI phải ép `!` vì `<Card>` có `bg-card` / `ring-0` đè lớp component).
+  - Khung chat: bong bóng bo góc theo cụm, câu trả lời Komi là "tờ ghi chú" có dải nghệ, ô nhập viên thuốc, tràn viền trên mobile; cảm xúc chỉ hiện emoji ở đuôi tin; nhóm: rê/bấm avatar hoặc tên ở đầu khung chat ra danh sách thành viên.
+  - Đã xem: avatar người xem thay chữ, rê chuột ra "Bình đã xem lúc 14:32". Backend thêm `Conversation.seenAt` (Map userId → giờ, `$min` giữ lần xem đầu, xoá khi có tin mới; dữ liệu cũ không có giờ thì chỉ ghi "đã xem"), gửi kèm `read-message`. Test thêm trong `authorization.test.js`.
+  - Thanh bên: header có 6 nền động chọn bằng nút bảng màu (cổ vịt, bầu trời sao, cánh đồng, hoàng hôn, biển đêm, núi tuyết; `HeaderScene.tsx`, lưu theo trình duyệt `header-scene`) + linh vật Komi đi dạo (`HeaderMascot.tsx`), công tắc sáng/tối to hơn; thẻ Komi riêng ở đầu (avatar linh vật, nhãn "✦ AI", hiển thị tên "Komi" qua `displayNameOf`, backend vẫn lưu "Komi AI"); Danh bạ (mọi bạn bè, online sáng / offline mờ, nút tìm không dấu → mở chat cũ hoặc khung trống) thay thẻ "Gửi tin nhắn mới" (đã xoá `CreateNewChat`, `FriendListModal`); thanh cuộn có khe để không đè thẻ; tự thu thanh bên trên mobile khi mở chat.
+  - Hộp thoại: tạo nhóm (tích chọn bạn bè, tự đóng khi tạo xong), kết bạn (ô `@username`, thẻ người tìm thấy), Cài đặt (bỏ tab Cấu hình, công tắc online sang Bảo mật; tab ngang có gạch chân trượt và nội dung lướt theo hướng; banner sáng xám dịu / tối đen); nút thoát (X, Huỷ, Đăng xuất) nền đỏ khi rê chuột.
+  - Logo mới (bong bóng có dấu "đang nhập", chấm cuối là ngôi sao AI; `logo.svg` + `logo-dark.svg`).
+  - Kiểm chứng: `npm test` backend 202/202 (6 lần chạy, 1 lần có 1 test fail không lưu được log: có thể có test chập chờn), `npm run build` frontend qua, lint các file đã sửa sạch (trừ `EmojiPicker.tsx` cũ). Claude đã xem trên trình duyệt (backend `LLM_PROVIDER=fake`, cấu hình `backend-fake` trong `.claude/launch.json`) ở desktop, mobile 375px, sáng và tối; chủ repo thử trên giao diện trong lúc làm.
+  - Chưa kiểm chứng: điện thoại thật; tooltip "đã xem" trên màn cảm ứng (chỉ hiện khi rê chuột / focus); Danh bạ chỉ tải bạn bè lúc mở trang (kết bạn xong phải tải lại).
 
 
 

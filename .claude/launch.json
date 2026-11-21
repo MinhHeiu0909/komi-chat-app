@@ -11,6 +11,12 @@
       "port": 5001
     },
     {
+      "name": "backend-fake",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd backend && LLM_PROVIDER=fake node src/server.js"],
+      "port": 5001
+    },
+    {
       "name": "frontend",
       "runtimeExecutable": "sh",
       "runtimeArgs": ["-c", "cd frontend && npm run dev -- --port 5173 --strictPort"],
