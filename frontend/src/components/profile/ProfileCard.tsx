@@ -1,7 +1,5 @@
 import type { User } from "@/types/user";
-import { Card, CardContent } from "../ui/card";
 import UserAvatar from "../chat/UserAvatar";
-import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
 import { useSocketStore } from "@/stores/useSocketStore";
 import AvatarUploader from "./AvatarUploader";
@@ -17,53 +15,56 @@ const ProfileCard = ({ user }: ProfileCardProps) => {
   // đang ẩn trạng thái thì server không đưa mình vào danh sách online
   const hidden = user.showOnlineStatus === false;
   const isOnline = !hidden && onlineUsers.includes(user._id);
-  const statusText = hidden ? "đang ẩn" : isOnline ? "online" : "offline";
+  const statusText = hidden ? "Đang ẩn" : isOnline ? "Online" : "Offline";
 
   return (
-    <Card className="overflow-hidden p-0 h-52 bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500">
-      <CardContent className="mt-20 pb-8 flex flex-col sm:flex-row items-center sm:items-end gap-6">
-        <div className="relative">
+    <div>
+      {/* chưa có tính năng ảnh bìa: chế độ sáng nền xám dịu, chế độ tối nền đen */}
+      <div className="mx-6 h-28 rounded-xl bg-[hsl(var(--muted))] dark:bg-[#0B1012] dark:ring-1 dark:ring-white/5" />
+
+      {/* chỉ avatar đè lên banner; tên và trạng thái nằm hẳn bên dưới banner (sm:pt-14 > 48px đè) */}
+      <div className="-mt-12 flex flex-col items-center gap-4 px-6 sm:flex-row sm:items-start sm:px-10">
+        <div className="relative shrink-0">
           <UserAvatar
             type="profile"
             name={user.displayName}
             avatarUrl={user.avatarUrl ?? undefined}
-            className="ring-4 ring-white shadow-lg"
+            className="ring-4 ring-popover"
           />
-
           <AvatarUploader />
         </div>
 
-        {/* user info */}
-        <div className="text-center sm:text-left flex-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">
+        <div className="min-w-0 flex-1 text-center sm:pt-14 sm:text-left">
+          <h2 className="truncate text-2xl font-semibold tracking-tight text-foreground">
             {user.displayName}
-          </h1>
-
-          {user.bio && (
-            <p className="text-white/70 text-sm mt-2 max-w-lg line-clamp-2">
-              {user.bio}
-            </p>
-          )}
+          </h2>
+          <p className="truncate text-base text-muted-foreground">@{user.username}</p>
         </div>
 
-        {/* status */}
-        <Badge
+        {/* trạng thái: chấm có vòng toả ra khi online cho dễ thấy */}
+        <span
           className={cn(
-            "flex items-center gap-1 capitalize",
-            isOnline ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-700"
+            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium sm:mt-15",
+            isOnline
+              ? "bg-[hsl(var(--online)/0.15)] text-emerald-700 dark:text-emerald-300"
+              : "bg-muted text-muted-foreground"
           )}
         >
-          <div
-            className={cn(
-              "size-2 rounded-full",
-              isOnline ? "bg-green-500 animate-pulse" : "bg-slate-500"
+          <span className="relative flex size-3">
+            {isOnline && (
+              <span className="absolute inline-flex size-full rounded-full bg-[hsl(var(--online))] opacity-75 motion-safe:animate-ping" />
             )}
-          />
-
+            <span
+              className={cn(
+                "relative inline-flex size-3 rounded-full",
+                isOnline ? "bg-[hsl(var(--online))]" : "bg-[hsl(var(--offline))]"
+              )}
+            />
+          </span>
           {statusText}
-        </Badge>
-      </CardContent>
-    </Card>
+        </span>
+      </div>
+    </div>
   );
 };
 
