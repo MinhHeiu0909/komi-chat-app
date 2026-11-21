@@ -33,6 +33,7 @@ export const updateConversationAfterCreateMessage = async (
   const update = {
     $set: {
       seenBy: [],
+      seenAt: {},
       lastMessageAt: message.createdAt,
       lastMessage: {
         _id: message._id.toString(),

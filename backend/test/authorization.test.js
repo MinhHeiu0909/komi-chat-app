@@ -469,9 +469,42 @@ describe("Đã xem (seen) trong nhóm", () => {
         [{ _id: B._id.toString(), displayName: B.displayName }],
       );
       assert.equal(event.conversation.unreadCounts[B._id.toString()], 0);
+      const seenAt = new Date(event.conversation.seenAt[B._id.toString()]);
+      assert.ok(Math.abs(Date.now() - seenAt.getTime()) < 10_000, "seenAt phải là giờ vừa xem");
     } finally {
       socket.disconnect();
     }
+  });
+
+  test("giờ đã xem giữ lần xem đầu, bị xoá khi có tin mới", async () => {
+    await request(app)
+      .post("/api/messages/group")
+      .set(auth(A))
+      .send({ conversationId: groupAB._id.toString(), content: "Tin để thử giờ đã xem" })
+      .expect(201);
+
+    const first = await request(app).patch(`/api/conversations/${groupAB._id}/seen`).set(auth(B));
+    assert.equal(first.status, 200);
+    const firstAt = first.body.seenAt[B._id.toString()];
+    assert.ok(firstAt);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const again = await request(app).patch(`/api/conversations/${groupAB._id}/seen`).set(auth(B));
+    assert.equal(again.body.seenAt[B._id.toString()], firstAt);
+
+    // danh sách conversation trả seenAt dạng object (flattenMaps), không phải {} rỗng do Map
+    const list = await request(app).get("/api/conversations").set(auth(A)).expect(200);
+    const listed = list.body.conversations.find((c) => c._id === groupAB._id.toString());
+    assert.equal(listed.seenAt[B._id.toString()], firstAt);
+
+    await request(app)
+      .post("/api/messages/group")
+      .set(auth(A))
+      .send({ conversationId: groupAB._id.toString(), content: "Tin mới" })
+      .expect(201);
+    const fresh = await models.Conversation.findById(groupAB._id);
+    assert.equal(fresh.seenBy.length, 0);
+    assert.equal(fresh.seenAt.size, 0);
   });
 });
 
