@@ -62,10 +62,8 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
                   href="/"
                   className="mx-auto block w-fit text-center"
                 >
-                  <img
-                    src="/logo.svg"
-                    alt="logo"
-                  />
+                  <img src="/logo.svg" alt="Komi" className="dark:hidden" />
+                  <img src="/logo-dark.svg" alt="Komi" className="hidden dark:block" />
                 </a>
 
                 <h1 className="text-2xl font-bold">Chào mừng quay lại</h1>
