@@ -5,6 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Tên hiển thị trên giao diện: bot luôn là "Komi" (nhãn "AI" đi kèm cho biết là trợ lý AI).
+// Backend vẫn lưu "Komi AI" (KOMI_DISPLAY_NAME) nên chỉ đổi ở đây, không đụng dữ liệu.
+export const displayNameOf = (p?: { displayName?: string; isBot?: boolean } | null) =>
+  p?.isBot ? "Komi" : p?.displayName;
+
 export const formatOnlineTime = (date: Date) => {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();

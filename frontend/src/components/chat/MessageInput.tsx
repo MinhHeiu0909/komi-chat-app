@@ -1,3 +1,4 @@
+import { displayNameOf } from "@/lib/utils";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { Conversation } from "@/types/chat";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -149,11 +150,11 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   const replyName = replyingTo
     ? replyingTo.senderId === user._id
       ? "chính bạn"
-      : selectedConvo.participants.find((p) => p._id === replyingTo.senderId)?.displayName ?? "tin nhắn"
+      : displayNameOf(selectedConvo.participants.find((p) => p._id === replyingTo.senderId)) ?? "tin nhắn"
     : "";
 
   return (
-    <div className="bg-background">
+    <div className="bg-[hsl(var(--chat-surface))] pb-[env(safe-area-inset-bottom)]">
       {/* thanh "Đang trả lời"; Esc hoặc nút X để huỷ */}
       {replyingTo && (
         <div className="mx-3 mt-2 flex items-start gap-2 rounded-md border-l-2 border-primary bg-primary/5 px-3 py-1.5 text-xs">
@@ -169,7 +170,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
             onClick={() => setReplyingTo(null)}
             aria-label="Huỷ trả lời"
             title="Huỷ (Esc)"
-            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+            className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-destructive hover:text-white"
           >
             <X className="size-3.5" />
           </button>
@@ -196,7 +197,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
               onClick={() => setAttachment(null)}
               aria-label="Bỏ tệp đính kèm"
               title="Bỏ tệp đính kèm"
-              className="absolute -right-1.5 -top-1.5 rounded-full border bg-background p-0.5 text-muted-foreground shadow-sm hover:text-foreground"
+              className="absolute -right-1.5 -top-1.5 rounded-full border bg-background p-0.5 text-muted-foreground shadow-sm transition-colors hover:border-destructive hover:bg-destructive hover:text-white dark:hover:bg-destructive"
             >
               <X className="size-3" />
             </button>
@@ -209,7 +210,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
       )}
 
     {/* items-end: khi ô nhập giãn cao, các nút nằm ở dòng cuối */}
-    <div className="flex items-end gap-2 p-3 min-h-14">
+    <div className="flex items-end gap-1.5 px-2 pb-2 pt-1 md:px-4 md:pb-3">
       <input
         ref={fileInputRef}
         type="file"
@@ -227,7 +228,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
         onClick={() => fileInputRef.current?.click()}
         aria-label="Gửi ảnh hoặc file"
         title="Gửi ảnh, file PDF hoặc Word (dán ảnh bằng Ctrl+V)"
-        className="hover:bg-primary/10 transition-smooth"
+        className="size-10 shrink-0 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
       >
         <Paperclip className="size-4" />
       </Button>
@@ -244,16 +245,17 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
             setValue(e.target.value);
             noteTyping(e.target.value);
           }}
-          placeholder="Soạn tin nhắn... (Shift+Enter để xuống dòng)"
+          placeholder="Soạn tin nhắn…"
+          title="Enter để gửi, Shift+Enter để xuống dòng"
           aria-label="Soạn tin nhắn"
-          className="block min-h-9 py-2 pr-12 text-sm md:text-sm leading-5 bg-white border-border/50 focus:border-primary/50 transition-smooth"
+          className="block min-h-10 max-h-40 rounded-[1.25rem] border-border bg-card px-4 py-2.5 pr-11 text-sm md:text-sm leading-5 dark:bg-card focus-visible:border-primary/60"
         />
-        <div className="absolute right-2 bottom-0.5 flex items-center gap-1">
+        <div className="absolute right-1 bottom-1 flex items-center gap-1">
           <Button
             render={<div/>}
             variant="ghost"
             size="icon"
-            className="size-8 hover:bg-primary/10 transition-smooth"
+            className="size-8 rounded-full hover:bg-primary/10"
           >
             <div>
               <EmojiPicker
@@ -266,10 +268,12 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
 
       <Button
         onClick={sendMessage}
-        className="bg-gradient-chat hover:shadow-glow transition-smooth hover:scale-105"
+        size="icon"
+        aria-label="Gửi tin nhắn"
+        className="size-10 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
         disabled={!value.trim() && !attachment}
       >
-        <Send className="size-4 text-white" />
+        <Send className="size-4" />
       </Button>
     </div>
     </div>

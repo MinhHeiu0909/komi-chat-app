@@ -1,13 +1,13 @@
 import { Square } from "lucide-react";
 import { Card } from "../ui/card";
-import UserAvatar from "./UserAvatar";
+import KomiAvatar from "./KomiAvatar";
 import MessageContent from "./MessageContent";
 import { useSocketStore } from "@/stores/useSocketStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { AiStream, Conversation } from "@/types/chat";
 
 const TypingDots = () => (
-  <span className="flex gap-1 py-1" aria-label="Komi AI đang trả lời">
+  <span className="flex gap-1 py-1" aria-label="Komi đang trả lời">
     {[0, 150, 300].map((delay) => (
       <span
         key={delay}
@@ -18,18 +18,20 @@ const TypingDots = () => (
   </span>
 );
 
-const AiStreamItem = ({ stream, convo }: { stream: AiStream; convo: Conversation }) => {
+const AiStreamItem = ({ stream }: { stream: AiStream }) => {
   const stopAiStream = useSocketStore((s) => s.stopAiStream);
   const isAsker = useAuthStore((s) => s.user?._id === stream.askerId);
-  const bot = convo.participants.find((p) => p._id === stream.botId);
 
   return (
-    <div className="flex gap-2 mt-1 justify-start" aria-live="polite">
-      <div className="w-8">
-        <UserAvatar type="chat" name={bot?.displayName ?? "Komi AI"} avatarUrl={bot?.avatarUrl ?? undefined} />
+    <div className="flex gap-2 mt-3 justify-start" aria-live="polite">
+      <div className="w-8 shrink-0">
+        <KomiAvatar type="chat" />
       </div>
-      <div className="max-w-xs lg:max-w-md min-w-0 space-y-1 flex flex-col items-start">
-        <Card data-bubble className="p-3 max-w-full min-w-0 chat-bubble-received">
+      <div className="max-w-[88%] md:max-w-xl min-w-0 space-y-1 flex flex-col items-start">
+        <Card
+          data-bubble
+          className="chat-ai-note gap-0 px-3.5 py-2.5 text-sm/relaxed ring-0 rounded-md rounded-r-2xl max-w-full min-w-0"
+        >
           {stream.content ? <MessageContent content={stream.content} /> : <TypingDots />}
         </Card>
         {isAsker && (
@@ -56,7 +58,7 @@ const AiStreamBubbles = ({ convo }: { convo: Conversation }) => {
   return (
     <div className="flex flex-col">
       {streams.map((stream) => (
-        <AiStreamItem key={stream.streamId} stream={stream} convo={convo} />
+        <AiStreamItem key={stream.streamId} stream={stream} />
       ))}
     </div>
   );

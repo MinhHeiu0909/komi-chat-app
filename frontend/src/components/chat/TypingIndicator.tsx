@@ -20,7 +20,7 @@ const TypingIndicator = ({ convo }: { convo: Conversation }) => {
   return (
     // luôn giữ chỗ (h-5) để khung chat không nhảy khi dòng này hiện/ẩn
     <div
-      className="h-5 px-4 flex items-center gap-1.5 text-xs text-muted-foreground bg-background"
+      className="h-5 px-4 flex items-center gap-1.5 text-xs text-muted-foreground bg-[hsl(var(--chat-surface))]"
       aria-live="polite"
     >
       {names.length > 0 && (

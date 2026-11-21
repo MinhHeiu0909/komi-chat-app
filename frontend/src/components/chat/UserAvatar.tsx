@@ -9,7 +9,7 @@ interface IUserAvatarProps {
 }
 
 const UserAvatar = ({ type, name, avatarUrl, className }: IUserAvatarProps) => {
-  const bgColor = !avatarUrl ? "bg-blue-500" : "";
+  const bgColor = !avatarUrl ? "bg-primary" : "";
 
   if (!name) {
     name = "Komi";
@@ -29,7 +29,7 @@ const UserAvatar = ({ type, name, avatarUrl, className }: IUserAvatarProps) => {
         src={avatarUrl}
         alt={name}
       />
-      <AvatarFallback className={`${bgColor} text-white font-semibold`}>
+      <AvatarFallback className={`${bgColor} text-primary-foreground font-semibold`}>
         {name.charAt(0)}
       </AvatarFallback>
     </Avatar>

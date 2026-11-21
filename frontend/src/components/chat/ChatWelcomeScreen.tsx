@@ -6,7 +6,7 @@ const ChatWelcomeScreen = () => {
   return (
     <SidebarInset className="flex w-full h-full bg-transparent">
       <ChatWindowHeader />
-      <div className="flex bg-background rounded-xl flex-1 items-center justify-center">
+      <div className="flex bg-[hsl(var(--chat-surface))] md:rounded-xl md:border flex-1 items-center justify-center">
         <div className="text-center px-4">
           <div className="size-14 mx-auto mb-4 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
             <MessagesSquare className="size-7" />

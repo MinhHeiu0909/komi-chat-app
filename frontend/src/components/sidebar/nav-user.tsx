@@ -1,4 +1,4 @@
-import { Bell, ChevronsUpDown, UserIcon } from "lucide-react";
+import { Bell, ChevronsUpDown, Settings } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -34,9 +34,10 @@ export function NavUser({ user }: { user: User }) {
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
+                // w-fit: vùng rê chuột chỉ ôm avatar + tên, không kéo hết chiều ngang thanh bên
                 <SidebarMenuButton
                   size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  className="w-fit max-w-full pr-3 data-[popup-open]:bg-sidebar-accent data-[popup-open]:text-sidebar-accent-foreground"
                 />
               }
             >
@@ -47,61 +48,57 @@ export function NavUser({ user }: { user: User }) {
                 </AvatarFallback>
               </Avatar>
 
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid min-w-0 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.displayName}</span>
-                <span className="truncate text-xs">{user.username}</span>
+                <span className="truncate text-xs text-muted-foreground">@{user.username}</span>
               </div>
 
-              <ChevronsUpDown className="ml-auto size-4" />
+              <ChevronsUpDown className="size-4 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+              className="w-64 rounded-xl p-1.5"
               side={isMobile ? "bottom" : "right"}
               align="end"
               sideOffset={4}
             >
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="p-0 font-normal">
-                  <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                    <Avatar className="h-8 w-8 rounded-lg">
+                  <div className="flex items-center gap-3 px-2 py-2 text-left text-sm">
+                    <Avatar className="size-10 rounded-lg">
                       <AvatarImage src={user.avatarUrl} alt={user.username} />
                       <AvatarFallback className="rounded-lg">
                         {user.displayName.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
 
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">
+                    <div className="grid flex-1 gap-0.5 text-left leading-tight">
+                      <span className="truncate text-sm font-semibold text-foreground">
                         {user.displayName}
                       </span>
-                      <span className="truncate text-xs">{user.username}</span>
+                      <span className="truncate text-xs text-muted-foreground">@{user.username}</span>
                     </div>
                   </div>
                 </DropdownMenuLabel>
               </DropdownMenuGroup>
 
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="my-1.5" />
 
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => setProfileOpen(true)}>
-                  <UserIcon className="text-muted-foreground dark:group-focus:text-accent-foreground!" />
-                  Tài Khoản
+              <DropdownMenuGroup className="space-y-0.5">
+                {/* mục cao 40px, chữ 14px, icon 18px cho thoáng (mặc định 28px / 12px) */}
+                <DropdownMenuItem onClick={() => setProfileOpen(true)} className="min-h-10 gap-3 rounded-lg px-3 text-sm [&_svg]:size-[18px]!">
+                  <Settings className="text-muted-foreground dark:group-focus:text-accent-foreground!" />
+                  Cài đặt
                 </DropdownMenuItem>
 
-                <DropdownMenuItem onClick={() => setfriendRequestOpen(true)}>
+                <DropdownMenuItem onClick={() => setfriendRequestOpen(true)} className="min-h-10 gap-3 rounded-lg px-3 text-sm [&_svg]:size-[18px]!">
                   <Bell className="text-muted-foreground dark:group-focus:text-accent-foreground!" />
-                  Thông Báo
+                  Thông báo
                 </DropdownMenuItem>
               </DropdownMenuGroup>
 
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="my-1.5" />
 
-              <DropdownMenuItem
-                className="cursor-pointer"
-                variant="destructive"
-              >
-                <Logout />
-              </DropdownMenuItem>
+              <Logout />
             </DropdownMenuContent>
             
           </DropdownMenu>
