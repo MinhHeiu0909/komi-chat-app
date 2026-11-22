@@ -100,7 +100,7 @@ cd frontend && npm run build
 
 1. **Đã xong mọi giai đoạn trong lộ trình.** Chủ repo dùng thử rồi quyết việc tiếp theo; không tự thêm tính năng ngoài lộ trình.
 2. Việc nhỏ trên Render (chủ repo tự làm trong tab Environment, không cần sửa code): đăng ký tài khoản riêng trên bản demo rồi điền username đó vào `AI_ADMIN_USERNAMES` (đang để trống); tuỳ chọn điền `AI_PRICE_*` để trang chi phí AI ước tính tiền.
-3. **Làm lại giao diện frontend:** phần 1 (bộ màu) xong; **phần 2 thanh bên + phần 3 khung chat xong trên nhánh `phase-5-ui-chat`** (2026-11-22, chưa push / chưa PR; chi tiết `docs/PROGRESS.md`). Bộ màu đổi sang "cổ vịt & nghệ", font Be Vietnam Pro. Phần 4: trang đăng nhập/đăng ký xong (2026-11-22, cùng nhánh, chưa commit); còn trang Tài liệu chung.
+3. **Làm lại giao diện frontend:** phần 1 (bộ màu) xong; **phần 2 thanh bên + phần 3 khung chat xong trên nhánh `phase-5-ui-chat`** (2026-11-22, chưa push / chưa PR; chi tiết `docs/PROGRESS.md`). Bộ màu đổi sang "cổ vịt & nghệ", font Be Vietnam Pro. Phần 4: trang đăng nhập/đăng ký và trang Tài liệu chung xong (2026-11-22, cùng nhánh). **Đã làm lại xong toàn bộ giao diện**; chờ chủ repo push + mở PR.
 
 Còn treo, làm khi chủ repo nhắc: thử PDF tiếng Việt thật (để file vào `samples/`); provider chưa đọc `finish_reason` (câu trả lời bị cắt giữa chữ; đã tái hiện một lần khi chạy `npm run eval:injection` ngày 2026-11-17, câu `control-asker-format`).
 
