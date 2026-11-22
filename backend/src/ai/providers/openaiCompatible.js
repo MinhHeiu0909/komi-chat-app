@@ -11,9 +11,10 @@ const DONE = Symbol("done");
  *   data: {"choices":[{"delta":{"content":"Xin"}}]}
  *   data: [DONE]
  * Trả về đoạn chữ, DONE, hoặc null (dòng trống, comment ": ping", delta không có chữ).
- * Sự kiện có `usage` (số token, thường ở cuối luồng) thì gọi onUsage.
+ * Sự kiện có `usage` (số token, thường ở cuối luồng) thì gọi onUsage;
+ * có `finish_reason` ("stop", "length", "content_filter"...) thì gọi onFinish.
  */
-const parseSseLine = (line, onUsage) => {
+const parseSseLine = (line, { onUsage, onFinish }) => {
   if (!line.startsWith("data:")) return null;
   const data = line.slice(5).trim();
   if (!data) return null;
@@ -36,7 +37,9 @@ const parseSseLine = (line, onUsage) => {
   }
 
   if (json.usage) onUsage?.(json.usage);
-  return json.choices?.[0]?.delta?.content || null;
+  const choice = json.choices?.[0];
+  if (choice?.finish_reason) onFinish(choice.finish_reason);
+  return choice?.delta?.content || null;
 };
 
 /**
@@ -81,6 +84,18 @@ export const createOpenAICompatibleProvider = ({ baseUrl, apiKey, model, timeout
         if (!res.ok) throw await errorFromResponse(res);
         if (!res.body) throw new LLMError(LLM_ERROR.OTHER, { detail: "Phản hồi không có nội dung" });
 
+        let finishReason = null;
+        const handlers = { onUsage, onFinish: (reason) => (finishReason = reason) };
+        // Kết thúc bình thường là finish_reason "stop". "length" (chạm giới hạn token), "content_filter"...
+        // hoặc luồng đóng khi chưa có finish_reason lẫn [DONE] (mạng đứt) thì câu trả lời đang dở:
+        // báo lỗi để người hỏi biết, phần chữ đã gửi đi vẫn giữ.
+        const checkFinished = (gotDone) => {
+          if (finishReason ? String(finishReason).toLowerCase() === "stop" : gotDone) return;
+          throw new LLMError(LLM_ERROR.TRUNCATED, {
+            detail: finishReason ? `finish_reason: ${finishReason}` : "Luồng đóng trước khi trả lời xong",
+          });
+        };
+
         const decoder = new TextDecoder();
         let buffer = "";
         for await (const bytes of res.body) {
@@ -90,15 +105,16 @@ export const createOpenAICompatibleProvider = ({ baseUrl, apiKey, model, timeout
           const lines = buffer.split(/\r?\n/);
           buffer = lines.pop();
           for (const line of lines) {
-            const piece = parseSseLine(line, onUsage);
-            if (piece === DONE) return;
+            const piece = parseSseLine(line, handlers);
+            if (piece === DONE) return checkFinished(true);
             if (piece) yield piece;
           }
         }
 
         // luồng đóng mà không có [DONE]: xử lý nốt phần còn lại
-        const piece = parseSseLine(buffer + decoder.decode(), onUsage);
+        const piece = parseSseLine(buffer + decoder.decode(), handlers);
         if (piece && piece !== DONE) yield piece;
+        checkFinished(piece === DONE);
       } catch (err) {
         // người hỏi tự dừng: ném lại lỗi abort gốc, không coi là lỗi của LLM
         if (signal?.aborted) signal.throwIfAborted();
