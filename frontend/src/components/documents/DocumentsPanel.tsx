@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { FileText, Loader2, Trash2, Upload } from "lucide-react";
+import { FileText, Loader2, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import KomiAvatar from "@/components/chat/KomiAvatar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import UserAvatar from "@/components/chat/UserAvatar";
@@ -22,7 +23,12 @@ const dateFormat = new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-
 
 const StatusBadge = ({ doc }: { doc: SharedDocument }) => {
   if (doc.status === "ready") {
-    return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">Sẵn sàng</Badge>;
+    return (
+      <Badge className="gap-1 bg-[hsl(var(--ai)/0.15)] text-[hsl(38_80%_32%)] dark:text-[hsl(var(--ai))]">
+        <Sparkles className="size-3" aria-hidden="true" />
+        Komi đã đọc
+      </Badge>
+    );
   }
   if (doc.status === "unreadable") {
     return (
@@ -113,12 +119,12 @@ const DocumentsPanel = () => {
   };
 
   return (
-    <SidebarInset className="flex flex-col h-full flex-1 overflow-hidden rounded-sm shadow-md">
-      <header className="sticky top-0 z-10 px-4 py-2 flex items-center gap-2 bg-background">
+    <SidebarInset className="flex h-full flex-1 flex-col overflow-hidden md:rounded-xl md:border">
+      <header className="sticky top-0 z-10 flex items-center gap-2 border-b bg-card px-2 py-2 md:px-4">
         <SidebarTrigger className="-ml-1 text-foreground" />
         <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-        <FileText className="size-4 text-primary" />
         <h2 className="font-semibold">Tài liệu chung</h2>
+        {!loading && <span className="text-sm text-muted-foreground">· {documents.length} tài liệu</span>}
         <div className="ml-auto">
           <input
             ref={inputRef}
@@ -127,91 +133,116 @@ const DocumentsPanel = () => {
             className="hidden"
             onChange={(e) => handleFile(e.target.files?.[0])}
           />
-          <Button size="lg" onClick={() => inputRef.current?.click()} disabled={uploading}>
+          <Button className="h-9 px-3 text-sm" onClick={() => inputRef.current?.click()} disabled={uploading}>
             {uploading ? <Loader2 className="animate-spin" /> : <Upload />}
-            {uploading ? "Đang tải lên..." : "Tải tài liệu lên"}
+            {uploading ? "Đang tải lên..." : "Tải lên"}
           </Button>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto bg-primary-foreground p-4">
-        <p className="text-sm text-muted-foreground mb-4">
-          Mọi người trong Komi đều xem và tải được tài liệu ở đây; Komi AI dùng chúng để trả lời câu hỏi. File PDF hoặc
-          Word (.docx), tối đa 10MB
-          {limits ? `, ${limits.dailyUploads} tài liệu mỗi người mỗi ngày` : ""}. Chỉ người tải lên mới xoá được.
-        </p>
-
-        {loading ? (
-          <div className="flex justify-center py-12 text-muted-foreground">
-            <Loader2 className="size-5 animate-spin" />
+      <div className="flex-1 overflow-y-auto bg-[hsl(var(--chat-surface))]">
+        <div className="mx-auto max-w-3xl space-y-4 p-3 md:p-6">
+          <div className="flex items-start gap-3 rounded-xl border bg-card p-4">
+            <KomiAvatar type="chat" />
+            <div className="space-y-1">
+              <p className="font-medium">Komi đọc tài liệu ở đây để trả lời câu hỏi của mọi người</p>
+              <p className="text-xs text-muted-foreground">
+                Ai trong Komi cũng xem và tải được. File PDF hoặc Word (.docx), tối đa 10MB
+                {limits ? `, ${limits.dailyUploads} tài liệu mỗi người mỗi ngày` : ""}. Chỉ người tải lên mới xoá được.
+              </p>
+            </div>
           </div>
-        ) : documents.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">
-            <FileText className="size-10 mx-auto mb-3 opacity-50" />
-            <p>Chưa có tài liệu nào. Tải lên quy định, hướng dẫn, biểu mẫu... để cả nhóm cùng tra cứu.</p>
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {documents.map((doc) => {
-              const note = truncatedNote(doc, limits);
-              return (
-                <li
-                  key={doc._id}
-                  className={cn(
-                    "glass rounded-lg p-3 flex items-center gap-3",
-                    deletingId === doc._id && "opacity-50"
-                  )}
-                >
-                  <div className="size-10 shrink-0 rounded-md bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold uppercase">
-                    {doc.kind}
-                  </div>
 
-                  <div className="flex-1 min-w-0">
-                    <a
-                      href={doc.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-medium text-sm truncate block hover:underline"
-                      title={doc.name}
-                    >
-                      {doc.name}
-                    </a>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground mt-1">
-                      {doc.uploader && (
-                        <span className="flex items-center gap-1">
-                          <UserAvatar
-                            type="mini"
-                            name={doc.uploader.displayName}
-                            avatarUrl={doc.uploader.avatarUrl ?? undefined}
-                            className="ring-0"
-                          />
-                          {doc.uploader.displayName}
-                        </span>
+          {loading ? (
+            <div className="flex justify-center py-12 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          ) : documents.length === 0 ? (
+            <div className="rounded-xl border border-dashed py-14 text-center text-muted-foreground">
+              <FileText className="mx-auto mb-3 size-10 opacity-50" />
+              <p className="px-6 text-sm">
+                Chưa có tài liệu nào. Tải lên quy định, hướng dẫn, biểu mẫu... để cả nhóm cùng tra cứu.
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+              {documents.map((doc) => {
+                const note = truncatedNote(doc, limits);
+                return (
+                  <li
+                    key={doc._id}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40",
+                      deletingId === doc._id && "opacity-50"
+                    )}
+                  >
+                    {/* PDF nghệ, Word cổ vịt */}
+                    <div
+                      className={cn(
+                        "flex size-10 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold uppercase",
+                        doc.kind === "pdf"
+                          ? "bg-[hsl(var(--ai)/0.15)] text-[hsl(38_80%_32%)] dark:text-[hsl(var(--ai))]"
+                          : "bg-primary/10 text-primary"
                       )}
-                      <span>· {dateFormat.format(new Date(doc.createdAt))}</span>
-                      <span>· {formatFileSize(doc.size)}</span>
-                      <StatusBadge doc={doc} />
-                      {note && <span className="text-amber-600 dark:text-amber-400">{note}</span>}
-                    </div>
-                  </div>
-
-                  {doc.canDelete && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Xoá ${doc.name}`}
-                      title="Xoá"
-                      onClick={() => handleDelete(doc)}
-                      disabled={deletingId === doc._id}
                     >
-                      <Trash2 className="text-destructive" />
-                    </Button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                      {doc.kind === "pdf" ? "PDF" : "DOC"}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block truncate text-sm font-medium hover:underline"
+                        title={doc.name}
+                      >
+                        {doc.name}
+                      </a>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+                        {doc.uploader && (
+                          <span className="flex items-center gap-1">
+                            <UserAvatar
+                              type="mini"
+                              name={doc.uploader.displayName}
+                              avatarUrl={doc.uploader.avatarUrl ?? undefined}
+                              className="ring-0"
+                            />
+                            {doc.uploader.displayName}
+                          </span>
+                        )}
+                        <span>· {dateFormat.format(new Date(doc.createdAt))}</span>
+                        <span>· {formatFileSize(doc.size)}</span>
+                        {/* mobile: nhãn trạng thái xuống dòng thông tin, desktop: nằm bên phải */}
+                        <span className="sm:hidden">
+                          <StatusBadge doc={doc} />
+                        </span>
+                      </div>
+                      {note && <p className="mt-1 text-xs text-[hsl(38_80%_32%)] dark:text-[hsl(var(--ai))]">{note}</p>}
+                    </div>
+
+                    <div className="hidden shrink-0 sm:block">
+                      <StatusBadge doc={doc} />
+                    </div>
+
+                    {doc.canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Xoá ${doc.name}`}
+                        title="Xoá"
+                        onClick={() => handleDelete(doc)}
+                        disabled={deletingId === doc._id}
+                        className="shrink-0 text-muted-foreground hover:bg-destructive hover:text-white dark:hover:bg-destructive"
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </div>
     </SidebarInset>
   );

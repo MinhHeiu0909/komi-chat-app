@@ -7,8 +7,9 @@ const DirectMessageList = () => {
 
   if (!conversations) return;
 
+  // chat với Komi AI có thẻ riêng (KomiAiCard) ở đầu thanh bên
   const directConversations = conversations.filter(
-    (convo) => convo.type === "direct"
+    (convo) => convo.type === "direct" && !convo.participants.some((p) => p.isBot)
   );
 
   return (

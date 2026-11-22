@@ -35,6 +35,7 @@ export interface Conversation {
   participants: Participant[];
   lastMessageAt: string;
   seenBy: SeenUser[];
+  seenAt?: Record<string, string>; // userId → giờ xem tin cuối (ISO)
   lastMessage: LastMessage | null;
   unreadCounts: Record<string, number>; // key = userId, value = unread count
   createdAt: string;

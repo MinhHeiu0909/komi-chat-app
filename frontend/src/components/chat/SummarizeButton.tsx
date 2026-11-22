@@ -41,7 +41,7 @@ const SummarizeButton = ({ convoId }: { convoId: string }) => {
       type="button"
       onClick={summarize}
       disabled={loading}
-      title="Komi AI tóm tắt các tin chưa đọc"
+      title="Komi tóm tắt các tin chưa đọc"
       className="ml-2 flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs text-primary hover:bg-primary/10 disabled:opacity-50"
     >
       <Sparkles className="size-3" />

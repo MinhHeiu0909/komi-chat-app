@@ -172,6 +172,7 @@ export const useSocketStore = create<SocketState>((set, get) => {
           unreadCounts,
           // server xoá danh sách "đã xem" mỗi khi có tin mới
           seenBy: [],
+          seenAt: {},
         };
 
         if (useChatStore.getState().activeConversationId === message.conversationId) {
@@ -189,6 +190,7 @@ export const useSocketStore = create<SocketState>((set, get) => {
           lastMessageAt: conversation.lastMessageAt,
           unreadCounts: conversation.unreadCounts,
           seenBy: conversation.seenBy,
+          seenAt: conversation.seenAt,
         };
 
         useChatStore.getState().updateConversation(updated);

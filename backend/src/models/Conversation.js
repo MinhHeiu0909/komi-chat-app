@@ -77,6 +77,13 @@ const conversationSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    // userId → lúc xem tin cuối (đi cùng seenBy, cùng bị xoá khi có tin mới).
+    // Dữ liệu cũ không có trường này: client chỉ hiện "đã xem", không có giờ.
+    seenAt: {
+      type: Map,
+      of: Date,
+      default: {},
+    },
     lastMessage: {
       type: lastMessageSchema,
       default: null,

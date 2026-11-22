@@ -164,7 +164,7 @@ export const useChatStore = create<ChatState>()(
 
           set((state) => ({
             conversations: state.conversations.map((c) =>
-              c._id === conversationId ? { ...c, seenBy: [] } : c
+              c._id === conversationId ? { ...c, seenBy: [], seenAt: {} } : c
             ),
           }));
         } catch (error) {

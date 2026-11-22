@@ -200,6 +200,25 @@ describe("chat riêng với Komi AI", () => {
     assert.equal(reply.content, new LLMError(LLM_ERROR.RATE_LIMIT).message);
   });
 
+  test("câu trả lời bị cắt giữa chừng → giữ phần đã trả lời + ghi chú hỏi lại", async () => {
+    const convo = await myKomiConversation(B);
+    spyChat(async function* () {
+      yield "MẸO 1: Tiêu đề ngắn gọn và";
+      throw new LLMError(LLM_ERROR.TRUNCATED, { detail: "finish_reason: length" });
+    });
+    await request(app)
+      .post("/api/messages/direct")
+      .set(auth(B))
+      .send({ recipientId: bot._id.toString(), conversationId: convo._id, content: "Cho mẹo viết email" })
+      .expect(201);
+
+    const reply = await waitFor(async () => {
+      const list = await botMessages(convo._id);
+      return list.find((m) => m.content.startsWith("MẸO 1"));
+    });
+    assert.equal(reply.content, `MẸO 1: Tiêu đề ngắn gọn và\n\n_${new LLMError(LLM_ERROR.TRUNCATED).message}_`);
+  });
+
   test("AI tắt sau khi đã có cuộc chat → bot báo đang tắt", async () => {
     const convo = await myKomiConversation(B);
     const before = (await botMessages(convo._id)).length;

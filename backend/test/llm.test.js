@@ -220,6 +220,38 @@ describe("provider OpenAI-compatible", () => {
     assert.deepEqual(chunks, ["Đang "]);
   });
 
+  // finish_reason ở sự kiện cuối, kiểu OpenAI: { choices: [{ delta: {}, finish_reason: "length" }] }
+  const finish = (reason) => `data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: reason }] })}\n\n`;
+
+  for (const reason of ["length", "content_filter"]) {
+    test(`finish_reason "${reason}" → TRUNCATED, vẫn giữ phần chữ đã nhận`, async () => {
+      handler = (_req, res) => res.end(sse("MẸO 1: Tiêu đề ngắn gọn và") + finish(reason) + "data: [DONE]\n\n");
+      const chunks = [];
+      await assert.rejects(
+        (async () => {
+          for await (const c of provider().streamChat({ messages: MESSAGES })) chunks.push(c);
+        })(),
+        (err) => {
+          assertLLMError(LLM_ERROR.TRUNCATED)(err);
+          assert.match(err.detail, new RegExp(reason));
+          return true;
+        },
+      );
+      assert.deepEqual(chunks, ["MẸO 1: Tiêu đề ngắn gọn và"]);
+      assert.equal(requests.length, 1); // không tự gọi lại
+    });
+  }
+
+  test("luồng đóng khi chưa có finish_reason lẫn [DONE] → TRUNCATED", async () => {
+    handler = (_req, res) => res.end(sse("Đang trả lời dở"));
+    await assert.rejects(collect(provider().streamChat({ messages: MESSAGES })), assertLLMError(LLM_ERROR.TRUNCATED));
+  });
+
+  test('finish_reason "stop" mà thiếu [DONE] vẫn là trả lời xong', async () => {
+    handler = (_req, res) => res.end(sse("Xong rồi") + finish("stop"));
+    assert.deepEqual(await collect(provider().streamChat({ messages: MESSAGES })), ["Xong rồi"]);
+  });
+
   test("dữ liệu streaming hỏng → lỗi khác", async () => {
     handler = (_req, res) => res.end("data: {khong-phai-json\n\n");
     await assert.rejects(collect(provider().streamChat({ messages: MESSAGES })), assertLLMError(LLM_ERROR.OTHER));

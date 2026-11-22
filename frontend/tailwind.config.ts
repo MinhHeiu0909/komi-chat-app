@@ -84,8 +84,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        heading: ["Inter", "system-ui", "sans-serif"],
+        sans: ['"Be Vietnam Pro"', "system-ui", "sans-serif"],
+        heading: ['"Be Vietnam Pro"', "system-ui", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -1,12 +1,5 @@
 import { Shield } from "lucide-react";
 import { useState } from "react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,62 +38,64 @@ const PrivacySettings = () => {
     value: form[key],
     onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value })),
-    className: "glass-light border-border/30",
+    className: "h-11 px-3.5 text-sm md:text-sm",
   });
 
   return (
-    <Card className="glass-strong border-border/30">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" />
+    <section className="space-y-3">
+      <div>
+        <h3 className="flex items-center gap-2 text-base font-semibold">
+          <Shield className="size-5 text-primary" aria-hidden="true" />
           Đổi mật khẩu
-        </CardTitle>
-        <CardDescription>
-          Đổi xong, các thiết bị khác đang đăng nhập sẽ bị đăng xuất
-        </CardDescription>
-      </CardHeader>
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Đổi xong, các thiết bị khác đang đăng nhập sẽ bị đăng xuất.
+        </p>
+      </div>
 
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="password-current">Mật khẩu hiện tại</Label>
-            <Input {...field("current")} autoComplete="current-password" />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border p-4">
+        <div className="space-y-2">
+          <Label htmlFor="password-current" className="text-sm font-medium">Mật khẩu hiện tại</Label>
+          <Input {...field("current")} autoComplete="current-password" />
+        </div>
 
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="password-next">Mật khẩu mới</Label>
+            <Label htmlFor="password-next" className="text-sm font-medium">Mật khẩu mới</Label>
             <Input
               {...field("next")}
               autoComplete="new-password"
               aria-invalid={tooShort || undefined}
             />
             {tooShort && (
-              <p className="text-xs text-destructive">
-                Mật khẩu mới cần ít nhất {MIN_PASSWORD_LENGTH} ký tự
+              <p className="text-sm text-destructive">
+                Cần ít nhất {MIN_PASSWORD_LENGTH} ký tự
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password-confirm">Nhập lại mật khẩu mới</Label>
+            <Label htmlFor="password-confirm" className="text-sm font-medium">Nhập lại mật khẩu mới</Label>
             <Input
               {...field("confirm")}
               autoComplete="new-password"
               aria-invalid={mismatch || undefined}
             />
-            {mismatch && <p className="text-xs text-destructive">Mật khẩu nhập lại không khớp</p>}
+            {mismatch && <p className="text-sm text-destructive">Mật khẩu nhập lại không khớp</p>}
           </div>
+        </div>
 
+        <div className="flex justify-end">
           <Button
             type="submit"
             disabled={!canSubmit}
-            className="w-full md:w-auto bg-gradient-primary hover:opacity-90 transition-opacity"
+            className="h-10 w-full px-5 text-sm bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
           >
             {saving ? "Đang đổi…" : "Đổi mật khẩu"}
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </form>
+    </section>
   );
 };
 

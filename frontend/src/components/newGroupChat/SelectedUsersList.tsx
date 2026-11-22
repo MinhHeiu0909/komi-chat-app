@@ -12,24 +12,23 @@ const SelectedUsersList = ({ invitedUsers, onRemove }: SelectedUsersListProps) =
     return;
   }
   return (
-    <div className="flex flex-wrap gap-2 pt-2">
+    <div className="flex flex-wrap gap-2">
       {invitedUsers.map((user) => (
-        <div
+        <span
           key={user._id}
-          className="flex items-center gap-1 bg-muted text-sm rounded-full px-3 py-1"
+          className="flex items-center gap-1.5 rounded-full bg-primary/10 py-1 pl-1 pr-1 text-sm text-foreground"
         >
-          <UserAvatar
-            type="chat"
-            name={user.displayName}
-            avatarUrl={user.avatarUrl}
-          />
-          <span>{user.displayName}</span>
-
-          <X
-            className="size-3 cursor-pointer hover:text-destructive"
+          <UserAvatar type="chat" name={user.displayName} avatarUrl={user.avatarUrl} />
+          <span className="max-w-32 truncate">{user.displayName}</span>
+          <button
+            type="button"
             onClick={() => onRemove(user)}
-          />
-        </div>
+            aria-label={`Bỏ ${user.displayName}`}
+            className="flex size-5 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-destructive hover:text-white focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="size-3" />
+          </button>
+        </span>
       ))}
     </div>
   );

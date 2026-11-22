@@ -1,4 +1,4 @@
-import { cn, formatMessageTime } from "@/lib/utils";
+import { cn, displayNameOf, formatMessageTime } from "@/lib/utils";
 import type { Conversation, Message, Participant } from "@/types/chat";
 import UserAvatar from "./UserAvatar";
 import { Card } from "../ui/card";
@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { REACTIONS, groupReactions } from "@/lib/reactions";
 import SeenAvatars from "./SeenAvatars";
 import MessageContent from "./MessageContent";
+import KomiAvatar from "./KomiAvatar";
 import { formatFileSize } from "@/lib/messageFile";
 import { jumpToMessage } from "@/lib/messageJump";
 import type { MessageFile } from "@/types/chat";
@@ -114,6 +115,13 @@ const MessageItem = ({
 
   const isGroupBreak = isShowTime || message.senderId !== prev?.senderId;
 
+  // tin mới hơn liền sau (index - 1): cùng người, không có nhãn giờ chen giữa → cùng cụm
+  const next = index > 0 ? messages[index - 1] : undefined;
+  const isClusterEnd =
+    !next ||
+    next.senderId !== message.senderId ||
+    new Date(next.createdAt).getTime() - new Date(message.createdAt).getTime() > 300000;
+
   const retryMessage = useChatStore((s) => s.retryMessage);
   const setReplyingTo = useChatStore((s) => s.setReplyingTo);
   const currentUserId = useAuthStore((s) => s.user?._id);
@@ -123,11 +131,12 @@ const MessageItem = ({
   const nameOf = (userId: string) =>
     userId === currentUserId
       ? "Bạn"
-      : selectedConvo.participants.find((p) => p._id === userId)?.displayName ?? "Ai đó";
+      : displayNameOf(selectedConvo.participants.find((p) => p._id === userId)) ?? "Ai đó";
 
   const participant = selectedConvo.participants.find(
     (p: Participant) => p._id.toString() === message.senderId.toString()
   );
+  const isBot = !message.isOwn && Boolean(participant?.isBot);
 
   const toggleReaction = useChatStore((s) => s.toggleReaction);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -147,7 +156,8 @@ const MessageItem = ({
         // ưu tiên tên / avatar mới nhất trong danh sách thành viên
         .map((s) => selectedConvo.participants.find((p) => p._id === s._id) ?? s)
     : [];
-  const showSeenAvatars = selectedConvo.type === "group" && seenUsers.length > 0;
+  // cả 1-1 lẫn nhóm: tin đã có người xem thì hiện avatar người xem thay cho chữ
+  const showSeenAvatars = seenUsers.length > 0;
 
   // chỉ trả lời / thả cảm xúc được với tin đã lưu trên server
   const canAct = !message.status;
@@ -206,7 +216,8 @@ const MessageItem = ({
       <div
         id={`msg-${message._id}`}
         className={cn(
-          "group flex gap-2 message-bounce mt-1 rounded-lg",
+          "group flex gap-2 message-bounce rounded-lg",
+          isGroupBreak ? "mt-3" : "mt-0.5",
           message.isOwn ? "justify-end" : "justify-start"
         )}
       >
@@ -215,21 +226,25 @@ const MessageItem = ({
 
         {/* avatar */}
         {!message.isOwn && (
-          <div className="w-8">
-            {isGroupBreak && (
-              <UserAvatar
-                type="chat"
-                name={participant?.displayName ?? "Komi"}
-                avatarUrl={participant?.avatarUrl ?? undefined}
-              />
-            )}
+          <div className="w-8 shrink-0">
+            {isGroupBreak &&
+              (isBot ? (
+                <KomiAvatar type="chat" />
+              ) : (
+                <UserAvatar
+                  type="chat"
+                  name={participant?.displayName ?? "Komi"}
+                  avatarUrl={participant?.avatarUrl ?? undefined}
+                />
+              ))}
           </div>
         )}
 
         {/* tin nhắn */}
         <div
           className={cn(
-            "max-w-xs lg:max-w-md min-w-0 space-y-1 flex flex-col",
+            "min-w-0 space-y-1 flex flex-col",
+            isBot ? "max-w-[88%] md:max-w-xl" : "max-w-[78%] md:max-w-md lg:max-w-lg",
             message.isOwn ? "items-end" : "items-start"
           )}
         >
@@ -237,10 +252,19 @@ const MessageItem = ({
             data-bubble
             className={cn(
               // max-w-full: khối code / bảng dài thì cuộn ngang bên trong, không đẩy bong bóng tràn ra
-              "p-3 transition-opacity max-w-full min-w-0",
+              "gap-0 px-3.5 py-2 text-sm/relaxed ring-0 transition-opacity max-w-full min-w-0",
               // tin chỉ có ảnh: viền mỏng quanh ảnh thay vì đệm dày
               message.imgUrl && !message.content && !message.replyTo && "p-1",
-              message.isOwn ? "chat-bubble-sent border-0" : "chat-bubble-received",
+              isBot
+                ? "chat-ai-note rounded-md rounded-r-2xl py-2.5"
+                : cn(
+                    "rounded-2xl",
+                    message.isOwn ? "chat-bubble-sent border-0" : "chat-bubble-received",
+                    // bo góc theo cụm: góc phía người gửi nhỏ lại ở chỗ hai tin liền nhau
+                    message.isOwn
+                      ? [!isGroupBreak && "rounded-tr-md", !isClusterEnd && "rounded-br-md"]
+                      : [!isGroupBreak && "rounded-tl-md", !isClusterEnd && "rounded-bl-md"]
+                  ),
               isSending && "opacity-70",
               isFailed && "ring-1 ring-destructive"
             )}
@@ -284,8 +308,9 @@ const MessageItem = ({
           </Card>
 
           {/* cảm xúc: bấm vào một ô để thả / gỡ đúng cảm xúc đó */}
+          {/* đè lên góc dưới bên phải bong bóng (đuôi tin), chỉ hiện emoji, không khung */}
           {reactionGroups.length > 0 && (
-            <div className="-mt-2 flex flex-wrap gap-1 px-1">
+            <div className="relative z-10 -mt-3 mr-1 flex flex-wrap justify-end gap-0.5 self-end">
               {reactionGroups.map(({ emoji, userIds }) => {
                 const mine = userIds.includes(currentUserId ?? "");
                 return (
@@ -296,13 +321,11 @@ const MessageItem = ({
                     aria-pressed={mine}
                     title={userIds.map(nameOf).join(", ")}
                     className={cn(
-                      "flex items-center gap-1 rounded-full border bg-background px-1.5 py-0.5 text-xs shadow-sm tabular-nums transition-colors",
-                      mine
-                        ? "border-primary/50 bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:bg-muted"
+                      "flex items-center gap-0.5 rounded-full text-xs font-medium tabular-nums outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:hover:scale-100",
+                      mine ? "text-primary" : "text-muted-foreground"
                     )}
                   >
-                    <span className="text-sm leading-none">{emoji}</span>
+                    <span className="text-base leading-none">{emoji}</span>
                     {userIds.length > 1 && <span>{userIds.length}</span>}
                   </button>
                 );
@@ -324,21 +347,18 @@ const MessageItem = ({
             </button>
           )}
 
-          {/* nhóm: avatar những người đã xem tin cuối */}
-          {showSeenAvatars && <SeenAvatars users={seenUsers} />}
+          {/* avatar những người đã xem tin cuối (rê chuột: tên + giờ xem) */}
+          {showSeenAvatars && (
+            <SeenAvatars users={seenUsers} seenAt={selectedConvo.seenAt} />
+          )}
 
-          {/* tin cuối của mình: đã gửi / đã xem (nhóm đã có avatar thì thôi) */}
+          {/* tin cuối của mình chưa ai xem */}
           {isLastMessage && message.isOwn && !showSeenAvatars && (
             <Badge
               variant="outline"
-              className={cn(
-                "text-xs px-1.5 py-0.5 h-4 border-0",
-                seenUsers.length > 0
-                  ? "bg-primary/20 text-primary"
-                  : "bg-muted text-muted-foreground"
-              )}
+              className="text-xs px-1.5 py-0.5 h-4 border-0 bg-muted text-muted-foreground"
             >
-              {seenUsers.length > 0 ? "Đã xem" : "Đã gửi"}
+              Đã gửi
             </Badge>
           )}
         </div>
@@ -350,7 +370,7 @@ const MessageItem = ({
       {/* Nhãn giờ đặt SAU tin trong JSX: danh sách hiển thị bằng
           flex-col-reverse nên nó sẽ nằm phía TRÊN tin trên màn hình */}
       {isShowTime && (
-        <span className="flex justify-center text-xs text-muted-foreground px-1 pt-2">
+        <span className="flex justify-center text-xs font-medium text-muted-foreground px-1 pt-5 pb-1">
           {formatMessageTime(new Date(message.createdAt))}
         </span>
       )}

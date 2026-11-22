@@ -2,10 +2,12 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
+import { Button } from "../ui/button";
 import { UserPlus } from "lucide-react";
 import type { User } from "@/types/user";
 import { useFriendStore } from "@/stores/useFriendStore";
@@ -79,16 +81,31 @@ const AddFriendModal = () => {
 
   return (
     <Dialog>
-      <DialogTrigger>
-        <div className="absolute top-3.5 right-3 flex size-5 items-center justify-center rounded-full hover:bg-sidebar-accent cursor-pointer z-10">
-          <UserPlus className="size-4" />
-          <span className="sr-only">Kết bạn</span>
-        </div>
+      <DialogTrigger
+        render={
+          <Button
+            variant="ghost"
+            aria-label="Kết bạn"
+            title="Kết bạn"
+            className="group/icon z-10 size-7 rounded-full hover:bg-sidebar-accent"
+          />
+        }
+      >
+        {/* rê chuột thì phóng to như icon "Gửi tin nhắn mới" */}
+        <UserPlus className="size-4 transition-transform group-hover/icon:scale-125 motion-reduce:transform-none" />
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w- border-none">
-        <DialogHeader>
-          <DialogTitle>Kết Bạn</DialogTitle>
+      <DialogContent className="gap-5 p-6 text-sm sm:max-w-lg">
+        <DialogHeader className="gap-1.5">
+          <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+            <UserPlus className="size-5 text-primary" />
+            Kết bạn
+          </DialogTitle>
+          <DialogDescription className="text-sm">
+            {isFound
+              ? "Gửi kèm một lời giới thiệu ngắn để người kia biết bạn là ai."
+              : "Nhập chính xác username của người bạn muốn kết bạn."}
+          </DialogDescription>
         </DialogHeader>
 
         {!isFound && (
@@ -109,6 +126,7 @@ const AddFriendModal = () => {
         {isFound && (
           <>
             <SendFriendRequestForm
+              user={searchUser}
               register={register}
               loading={loading}
               searchedUsername={searchedUsername}

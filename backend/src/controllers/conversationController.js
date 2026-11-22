@@ -160,6 +160,8 @@ export const markAsSeen = async (req, res) => {
       {
         $addToSet: { seenBy: userId },
         $set: { [`unreadCounts.${userId}`]: 0 },
+        // $min: gọi lại lần nữa không đẩy giờ xem về sau
+        $min: { [`seenAt.${userId}`]: new Date() },
       },
       { returnDocument: "after" },
     ).populate("seenBy", "displayName avatarUrl");
@@ -172,6 +174,7 @@ export const markAsSeen = async (req, res) => {
         lastMessageAt: updated.lastMessageAt,
         unreadCounts: Object.fromEntries(updated.unreadCounts ?? []),
         seenBy: updated.seenBy,
+        seenAt: Object.fromEntries(updated.seenAt ?? []),
       },
       lastMessage: {
         _id: updated.lastMessage._id,
@@ -186,6 +189,7 @@ export const markAsSeen = async (req, res) => {
     return res.status(200).json({
       message: "Marked as seen",
       seenBy: updated.seenBy || [],
+      seenAt: Object.fromEntries(updated.seenAt ?? []),
       myUnreadCount: updated.unreadCounts?.get(userId) || 0,
     });
   } catch (error) {

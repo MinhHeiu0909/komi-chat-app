@@ -1,6 +1,6 @@
 import { useChatStore } from "@/stores/useChatStore";
 import ChatWelcomeScreen from "./ChatWelcomeScreen";
-import { SidebarInset } from "../ui/sidebar";
+import { SidebarInset, useSidebar } from "../ui/sidebar";
 import ChatWindowHeader from "./ChatWindowHeader";
 import ChatWindowBody from "./ChatWindowBody";
 import MessageInput from "./MessageInput";
@@ -18,6 +18,12 @@ const ChatWindowLayout = () => {
 
   const selectedConvo =
     conversations.find((c) => c._id === activeConversationId) ?? null;
+
+  // điện thoại: mở cuộc trò chuyện (chọn thẻ, tạo chat mới, tạo nhóm…) thì thu thanh bên lại
+  const { setOpenMobile } = useSidebar();
+  useEffect(() => {
+    if (activeConversationId) setOpenMobile(false);
+  }, [activeConversationId, setOpenMobile]);
 
   useEffect(() => {
     if (!selectedConvo) {
@@ -44,12 +50,12 @@ const ChatWindowLayout = () => {
   }
 
   return (
-    <SidebarInset className="flex flex-col h-full flex-1 overflow-hidden rounded-sm shadow-md">
+    <SidebarInset className="flex flex-col h-full flex-1 overflow-hidden md:rounded-xl md:border">
       {/* Header */}
       <ChatWindowHeader chat={selectedConvo} />
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto bg-primary-foreground">
+      <div className="flex-1 overflow-y-auto bg-[hsl(var(--chat-surface))]">
         <ChatWindowBody />
       </div>
 

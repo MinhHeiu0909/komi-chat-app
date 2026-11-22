@@ -1,12 +1,5 @@
-import { Heart } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useState } from "react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,97 +53,91 @@ const PersonalInfoForm = ({ userInfo }: Props) => {
       setForm((f) => ({ ...f, [key]: e.target.value })),
   });
 
+  const inputClass = "h-11 px-3.5 text-sm md:text-sm";
+
+  // nhãn bên trái, ô nhập bên phải (điện thoại thì nhãn nằm trên)
+  const row = (label: React.ReactNode, control: React.ReactNode, htmlFor: string) => (
+    <div className="grid gap-2 sm:grid-cols-[9rem_1fr] sm:items-center sm:gap-4">
+      <Label htmlFor={htmlFor} className="text-sm font-medium">
+        {label}
+      </Label>
+      {control}
+    </div>
+  );
+
+  const locked = (id: string, value: string, type = "text") => (
+    <div className="relative">
+      <Input id={id} type={type} value={value} readOnly disabled className={`${inputClass} pr-10`} />
+      <Lock
+        className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        aria-hidden="true"
+      />
+    </div>
+  );
+
   return (
-    <Card className="glass-strong border-border/30">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Heart className="size-5 text-primary" />
-          Thông tin cá nhân
-        </CardTitle>
-        <CardDescription>
-          Cập nhật chi tiết cá nhân và thông tin hồ sơ của bạn
-        </CardDescription>
-      </CardHeader>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {row(
+        "Tên hiển thị",
+        <div className="space-y-1.5">
+          <Input
+            {...field("displayName")}
+            maxLength={MAX_DISPLAY_NAME}
+            aria-invalid={nameMissing || undefined}
+            className={inputClass}
+          />
+          {nameMissing && (
+            <p className="text-sm text-destructive">Tên hiển thị không được để trống</p>
+          )}
+        </div>,
+        "displayName"
+      )}
 
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="displayName">Tên hiển thị</Label>
-              <Input
-                {...field("displayName")}
-                maxLength={MAX_DISPLAY_NAME}
-                aria-invalid={nameMissing || undefined}
-                className="glass-light border-border/30"
-              />
-              {nameMissing && (
-                <p className="text-xs text-destructive">Tên hiển thị không được để trống</p>
-              )}
-            </div>
+      {row(
+        "Số điện thoại",
+        <Input
+          {...field("phone")}
+          type="tel"
+          inputMode="tel"
+          placeholder="Ví dụ: 0912 345 678"
+          className={inputClass}
+        />,
+        "phone"
+      )}
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Số điện thoại</Label>
-              <Input
-                {...field("phone")}
-                type="tel"
-                inputMode="tel"
-                placeholder="Ví dụ: 0912 345 678"
-                className="glass-light border-border/30"
-              />
-            </div>
+      {/* đổi username / email cần xác thực nên chưa cho sửa */}
+      {row("Tên người dùng", locked("username", userInfo.username), "username")}
+      {row("Email", locked("email", userInfo.email, "email"), "email")}
 
-            {/* đổi username / email cần xác thực nên chưa cho sửa */}
-            <div className="space-y-2">
-              <Label htmlFor="username">Tên người dùng</Label>
-              <Input
-                id="username"
-                value={userInfo.username}
-                readOnly
-                disabled
-                className="glass-light border-border/30"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={userInfo.email}
-                readOnly
-                disabled
-                className="glass-light border-border/30"
-              />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground -mt-2">
-            Tên người dùng và email hiện chưa đổi được.
+      <div className="grid gap-2 sm:grid-cols-[9rem_1fr] sm:gap-4">
+        <Label htmlFor="bio" className="self-start text-sm font-medium sm:pt-3">
+          Giới thiệu
+        </Label>
+        <div className="space-y-1.5">
+          <Textarea
+            {...field("bio")}
+            rows={4}
+            maxLength={MAX_BIO}
+            placeholder="Vài dòng về bạn: phòng ban, việc đang phụ trách…"
+            className="min-h-28 resize-none px-3.5 py-3 text-sm md:text-sm"
+          />
+          <p className="text-right text-xs text-muted-foreground tabular-nums">
+            {form.bio.length}/{MAX_BIO}
           </p>
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="bio">Giới thiệu</Label>
-            <Textarea
-              {...field("bio")}
-              rows={3}
-              maxLength={MAX_BIO}
-              placeholder="Vài dòng về bạn"
-              className="glass-light border-border/30 resize-none"
-            />
-            <p className="text-right text-xs text-muted-foreground tabular-nums">
-              {form.bio.length}/{MAX_BIO}
-            </p>
-          </div>
-
-          <Button
-            type="submit"
-            disabled={!dirty || nameMissing || saving}
-            className="w-full md:w-auto bg-gradient-primary hover:opacity-90 transition-opacity"
-          >
-            {saving ? "Đang lưu…" : "Lưu thay đổi"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+      <div className="flex flex-col-reverse items-stretch gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">Tên người dùng và email hiện chưa đổi được.</p>
+        <Button
+          type="submit"
+          disabled={!dirty || nameMissing || saving}
+          className="h-10 px-5 text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          {saving ? "Đang lưu…" : "Lưu thay đổi"}
+        </Button>
+      </div>
+    </form>
   );
 };
 
