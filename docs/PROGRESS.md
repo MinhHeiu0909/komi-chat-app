@@ -190,6 +190,8 @@ Chi tiết từng giai đoạn đã làm. Bản tóm tắt nằm ở mục "Tr�
   - Logo mới (bong bóng có dấu "đang nhập", chấm cuối là ngôi sao AI; `logo.svg` + `logo-dark.svg`).
   - Kiểm chứng: `npm test` backend 202/202 (6 lần chạy, 1 lần có 1 test fail không lưu được log: có thể có test chập chờn), `npm run build` frontend qua, lint các file đã sửa sạch (trừ `EmojiPicker.tsx` cũ). Claude đã xem trên trình duyệt (backend `LLM_PROVIDER=fake`, cấu hình `backend-fake` trong `.claude/launch.json`) ở desktop, mobile 375px, sáng và tối; chủ repo thử trên giao diện trong lúc làm.
   - Chưa kiểm chứng: điện thoại thật; tooltip "đã xem" trên màn cảm ứng (chỉ hiện khi rê chuột / focus); Danh bạ chỉ tải bạn bè lúc mở trang (kết bạn xong phải tải lại).
+- **Giao diện phần 4 — trang đăng nhập/đăng ký (2026-11-22, nhánh `phase-5-ui-chat`):** bỏ 2 ảnh PNG tông hồng tím, cột phải thay bằng `AuthShowcase.tsx` (nền cổ vịt, linh vật Komi có chấm nhấp nháy, "Komi - trợ lý AI" + "Ghi nhớ và giải đáp tất cả tin nhắn của bạn."); riêng trang đăng ký có thêm đoạn chat mẫu lấy từ seed (Bình hỏi giờ họp → Komi trả lời trên tờ ghi chú có nguồn). Ô nhập cao 40px, nút chính cao 40px rộng 3/4 ở giữa. Sửa nhãn "Tên" không gắn với ô nhập (`htmlFor` gõ sai) và lớp gạch chân gõ sai.
+  - Kiểm chứng: `npm run build` qua, lint 3 file sửa sạch. Claude xem trên trình duyệt: desktop sáng/tối, mobile 375px (cột phải ẩn). Chưa thử bấm đăng nhập thật (lúc xem không chạy backend).
 
 
 

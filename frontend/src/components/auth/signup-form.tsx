@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNavigate } from "react-router";
+import AuthShowcase from "./AuthShowcase";
 
 const signUpSchema = z.object({
   firstname: z.string().min(1, "Tên bắt buộc phải có"),
@@ -75,7 +76,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                   <Label htmlFor="lastname" className="block text-sm">
                     Họ
                   </Label>
-                  <Input type="text" id="lastname" {...register("lastname")} />
+                  <Input className="h-10 px-3 text-sm md:text-sm" type="text" id="lastname" {...register("lastname")} />
 
                   {errors.lastname && (
                     <p className="text-destructive text-sm">
@@ -84,10 +85,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="fistname" className="block text-sm">
+                  <Label htmlFor="firstname" className="block text-sm">
                     Tên
                   </Label>
-                  <Input
+                  <Input className="h-10 px-3 text-sm md:text-sm"
                     type="text"
                     id="firstname"
                     {...register("firstname")}
@@ -105,7 +106,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                 <Label htmlFor="username" className="block text-sm">
                   Tên đăng nhập
                 </Label>
-                <Input
+                <Input className="h-10 px-3 text-sm md:text-sm"
                   type="text"
                   id="username"
                   placeholder="komi"
@@ -123,7 +124,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                 <Label htmlFor="email" className="block text-sm">
                   Email
                 </Label>
-                <Input
+                <Input className="h-10 px-3 text-sm md:text-sm"
                   type="email"
                   id="email"
                   placeholder="m@gmail.com"
@@ -141,7 +142,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                 <Label htmlFor="password" className="block text-sm">
                   Mật khẩu
                 </Label>
-                <Input
+                <Input className="h-10 px-3 text-sm md:text-sm"
                   type="password"
                   id="password"
                   {...register("password")}
@@ -154,7 +155,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
               </div>
 
               {/* nút đăng ký */}
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="mx-auto h-10 w-3/4 text-sm font-semibold" disabled={isSubmitting}>
                 Tạo tài khoản
               </Button>
 
@@ -166,16 +167,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
               </div>
             </div>
           </form>
-          <div className="relative hidden bg-muted md:block">
-            <img
-              src="/placeholderSignUp.png"
-              alt="Image"
-              className="absolute top-1/2 -translate-y-1/2 object-cover"
-            />
-          </div>
+          <AuthShowcase showChat />
         </CardContent>
       </Card>
-      <div className=" text-xs text-balance px-6 text-center *:[a]:hover:text-primary text-muted-foreground *:[a]:underline *:[a]:underline-offetset-4">
+      <div className=" text-xs text-balance px-6 text-center *:[a]:hover:text-primary text-muted-foreground *:[a]:underline *:[a]:underline-offset-4">
         Bằng cách tiếp tục, bạn đồng ý với <a href="#">Điều khoản dịch vụ</a> và{" "}
         <a href="#">Chính sách bảo mật</a> của chúng tôi.
       </div>

@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Label } from "../ui/label";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNavigate } from "react-router";
+import AuthShowcase from "./AuthShowcase";
 
 const signInSchema = z.object({
   username: z.string().trim().min(1, "Vui lòng nhập tên đăng nhập"),
@@ -80,7 +81,7 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
                 >
                   Tên đăng nhập
                 </Label>
-                <Input
+                <Input className="h-10 px-3 text-sm md:text-sm"
                   type="text"
                   id="username"
                   placeholder="komi"
@@ -101,7 +102,7 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
                 >
                   Mật khẩu
                 </Label>
-                <Input
+                <Input className="h-10 px-3 text-sm md:text-sm"
                   type="password"
                   id="password"
                   {...register("password")}
@@ -116,7 +117,7 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
               {/* nút đăng nhập */}
               <Button
                 type="submit"
-                className="w-full"
+                className="mx-auto h-10 w-3/4 text-sm font-semibold"
                 disabled={isSubmitting}
               >
                 Đăng nhập
@@ -146,16 +147,10 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
               </div>
             </div>
           </form>
-          <div className="bg-muted relative hidden md:block">
-            <img
-              src="/placeholder.png"
-              alt="Image"
-              className="absolute top-1/2 -translate-y-1/2 object-cover"
-            />
-          </div>
+          <AuthShowcase />
         </CardContent>
       </Card>
-      <div className=" text-xs text-balance px-6 text-center *:[a]:hover:text-primary text-muted-foreground *:[a]:underline *:[a]:underline-offetset-4">
+      <div className=" text-xs text-balance px-6 text-center *:[a]:hover:text-primary text-muted-foreground *:[a]:underline *:[a]:underline-offset-4">
         Bằng cách tiếp tục, bạn đồng ý với <a href="#">Điều khoản dịch vụ</a> và{" "}
         <a href="#">Chính sách bảo mật</a> của chúng tôi.
       </div>
